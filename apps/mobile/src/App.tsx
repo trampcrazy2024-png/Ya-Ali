@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
-const NativeApp = registerPlugin<any>('App');
 import { BookOpen, Brain, Bot, Search, Languages, Settings as SettingsIcon, Send, Mic, Volume2, Star, Download, Upload, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { PHRASES } from './data';
 import { initLanguageBank, getBankItems, searchBank, saveBankItem, exportBank, importBank } from './languageBank';
 import { chat, configuredProviders, providerLabel } from './ai';
 import { getLogs, addLog, clearLogs, exportLogs, getNativeLogcat } from './diagnostics';
+import { listenSpeech } from './speech';
 import { localChat, localModelStatus, loadLocalModel } from './modelManager';
 import { getSpeechSpeed, setSpeechSpeed, getOpenRouterApiKey, setOpenRouterApiKey, getGeminiApiKey, setGeminiApiKey, getGroqApiKey, setGroqApiKey, getCustomEndpoint, setCustomEndpoint, getCustomModel, setCustomModel } from './settings';
 
@@ -60,6 +60,7 @@ export default function App(){
   const endRef=useRef<HTMLDivElement>(null);
 
   useEffect(()=>{initLanguageBank().then(()=>setBank(getBankItems())); localModelStatus().then(setLocalModel);},[]);
+  useEffect(()=>{ const onResize=()=>document.documentElement.style.setProperty('--vh', `${window.innerHeight*0.01}px`); onResize(); addEventListener('resize',onResize); return()=>removeEventListener('resize',onResize); },[]);
   useEffect(()=>{
     const on=()=>setOnline(true),off=()=>setOnline(false);
     addEventListener('online',on);addEventListener('offline',off);
@@ -68,14 +69,15 @@ export default function App(){
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'})},[messages,busy]);
   useEffect(()=>{
     if(!Capacitor.isNativePlatform()) return;
-    const listener = NativeApp.addListener('backButton',()=>{
+    const onBack=()=>{
       if(tab!=='chat'){setTab('chat');setBackArmed(false);return}
-      if(backArmed){NativeApp.exitApp();return}
+      if(backArmed){setBackArmed(false);setToast('برای خروج دوباره بازگشت را بزنید');return}
       setBackArmed(true);
       setToast('برای خروج، دوباره دکمه بازگشت را بزنید');
-      setTimeout(()=>setBackArmed(false),2200);
-    });
-    return()=>{listener.then((x:any)=>x.remove())};
+      window.setTimeout(()=>setBackArmed(false),2200);
+    };
+    window.addEventListener('yaaliBack',onBack);
+    return()=>window.removeEventListener('yaaliBack',onBack);
   },[tab,backArmed]);
 
   const results=useMemo(()=>searchBank(query,120),[query,bank]);
@@ -89,14 +91,20 @@ export default function App(){
     setMessages(history);setBusy(true);
     try{
       let reply:string;let provider:string|undefined;
+      const dialectName=dialect==='iraqi'?'Iraqi Arabic':dialect==='lebanese'?'Lebanese Arabic':'American English';
+      const system=`You are Ya Ali, a warm intelligent language partner for a Persian-speaking learner. Primary UI/native language is Persian. Teach and converse naturally in ${dialectName}. Only use Iraqi Arabic, Lebanese Arabic, or American English for the supported learning targets. Explain difficult points briefly in Persian, correct meaningful mistakes gently, preserve conversational flow, and prefer practical colloquial language.`;
       if(online && configuredProviders().length){
-        const dialectName=dialect==='iraqi'?'Iraqi Arabic':dialect==='lebanese'?'Lebanese Arabic':'American English';
-        const system=`You are Ya Ali, a warm intelligent language partner for a Persian-speaking learner. Primary UI/native language is Persian. Teach and converse naturally in ${dialectName}. Only use Iraqi Arabic, Lebanese Arabic, or American English for the supported learning targets. Explain difficult points briefly in Persian, correct meaningful mistakes gently, preserve conversational flow, and prefer practical colloquial language.`;
-        const r=await chat([{role:'system',content:system},...history.slice(-12).map(m=>({role:m.role,content:m.text}))]);
-        reply=r.text;provider=providerLabel(r.provider);
-      }else {
-        try { reply=await localChat([{role:'system',content:`You are Ya Ali, an offline language partner for a Persian-speaking learner. Use ${dialect==='iraqi'?'Iraqi Arabic':dialect==='lebanese'?'Lebanese Arabic':'American English'} and explain briefly in Persian.`},{role:'user',content:text}]); provider='Local AI'; }
-        catch { reply=localAnswer(text); }
+        try {
+          const r=await chat([{role:'system',content:system},...history.slice(-12).map(m=>({role:m.role,content:m.text}))]);
+          reply=r.text;provider=providerLabel(r.provider);
+        } catch (onlineError:any) {
+          await addLog('warn',`online AI failed; trying Local AI: ${onlineError?.message||onlineError}`);
+          try { reply=await localChat([{role:'system',content:system},{role:'user',content:text}]); provider='Local AI fallback'; }
+          catch { reply=localAnswer(text); provider='Local Search'; }
+        }
+      } else {
+        try { reply=await localChat([{role:'system',content:system},{role:'user',content:text}]); provider='Local AI'; }
+        catch { reply=localAnswer(text); provider='Local Search'; }
       }
       setMessages(m=>[...m,{id:crypto.randomUUID(),role:'assistant',text:reply,...(provider?{provider}: {})}]);
       await addLog('info',`chat completed provider=${provider||'local-search'}`); setLogs(getLogs());
@@ -144,7 +152,7 @@ export default function App(){
         </div>
         <div className="composer">
           <textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}} placeholder="پیام خود را بنویسید…" rows={2}/>
-          <button className="iconBtn" onClick={()=>{try{const R=(window as any).webkitSpeechRecognition||(window as any).SpeechRecognition;if(!R){setToast('تشخیص گفتار در این دستگاه در دسترس نیست');return}const r=new R();r.lang='fa-IR';r.onresult=(e:any)=>setInput(e.results[0][0].transcript);r.start()}catch{setToast('دسترسی میکروفن لازم است')}}}><Mic size={20}/></button>
+          <button className="iconBtn micBtn" aria-label="ضبط صدا" onClick={async()=>{try{setToast('در حال گوش دادن…');const text=await listenSpeech('fa-IR');if(text)setInput(v=>v?`${v} ${text}`:text);setToast('صدای شما دریافت شد')}catch(e:any){await addLog('warn',`speech failed: ${e?.message||e}`);setToast('ضبط صدا در دسترس نیست؛ مجوز میکروفن و سرویس گفتار دستگاه را بررسی کنید')}}}><Mic size={20}/></button>
           <button className="sendBtn" onClick={send} disabled={busy||!input.trim()}><Send size={20}/></button>
         </div>
       </section>}
@@ -185,8 +193,8 @@ export default function App(){
         <label>Local/Custom OpenAI-compatible Endpoint<input value={customEndpoint} onChange={e=>{setCustomEndpointState(e.target.value);setCustomEndpoint(e.target.value)}} placeholder="مثلاً http://192.168.1.10:11434"/></label>
         <label>Model<input value={customModel} onChange={e=>{setCustomModelState(e.target.value);setCustomModel(e.target.value)}} placeholder="llama / qwen / model name"/></label>
         <label>سرعت تلفظ: {speechSpeed.toFixed(2)}<input type="range" min=".5" max="1.5" step=".05" value={speechSpeed} onChange={e=>{const v=Number(e.target.value);setSpeed(v);setSpeechSpeed(v)}}/></label>
-        <div className="notice"><strong>Local AI / GGUF</strong><br/>مدل GGUF را از حافظه دستگاه انتخاب و در فضای خصوصی برنامه وارد کنید. این مرحله مدیریت مدل را آماده می‌کند؛ اجرای inference فقط وقتی فعال می‌شود که کتابخانه native llama.cpp در APK لینک شده باشد.<div className="settingsRow"><button onClick={async()=>{const r=await loadLocalModel();setLocalModel(r);setToast(r.loaded?`مدل ${r.name||''} بارگذاری شد`:(r.error||'مدل بارگذاری نشد'));await addLog(r.loaded?'info':'warn',`local model load: ${r.loaded?'ok':r.error||'failed'}`);setLogs(getLogs())}}>انتخاب و بارگذاری مدل محلی</button></div></div>
-        <div className="providerGrid">{configuredProviders().map(p=><span key={p}>✓ {providerLabel(p)}</span>)}{configuredProviders().length===0&&<span>⚠️ هنوز AI آنلاین تنظیم نشده</span>}</div>
+        <div className="notice"><strong>Local AI / GGUF</strong><br/>{localModel.engineReady?`✅ مدل فعال و آماده مکالمه: ${localModel.name||localModel.path}`:localModel.imported||localModel.path?`📦 مدل وارد شده: ${localModel.name||localModel.path} — موتور inference هنوز فعال نیست.`:'⏺ هیچ مدل محلی بارگذاری نشده است.'}<br/>مدل‌های GGUF برای اجرای مستقیم روی گوشی مناسب‌اند؛ مدل‌های دیگر را می‌توان از طریق Custom OpenAI-compatible endpoint (Ollama/LM Studio/LocalAI روی یک دستگاه در شبکه) استفاده کرد.<div className="settingsRow"><button onClick={async()=>{const r=await loadLocalModel();setLocalModel(r);setToast(r.engineReady?`مدل ${r.name||''} فعال شد`:(r.imported?`مدل ${r.name||''} وارد شد؛ موتور محلی هنوز فعال نیست`:(r.error||'مدل بارگذاری نشد')));await addLog(r.loaded?'info':'warn',`local model load: ${r.loaded?'ok':r.error||'failed'}`);setLogs(getLogs())}}>انتخاب و بارگذاری مدل محلی</button></div></div>
+        <div className="providerGrid"><span>🎯 هدف: Persian → Iraqi / Lebanese / American English</span>{configuredProviders().map(p=><span key={p}>✓ {providerLabel(p)}</span>)}{configuredProviders().length===0&&<span>⚠️ هنوز AI آنلاین تنظیم نشده</span>}</div>
         <div className="settingsRow"><button onClick={()=>fileRef.current?.click()}><Upload/> وارد کردن بانک</button><button onClick={()=>{const blob=new Blob([exportBank()],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ya-ali-language-bank.json';a.click();URL.revokeObjectURL(a.href)}}><Download/> خروجی بانک</button><button onClick={()=>{localStorage.removeItem('yaali_language_bank_v2');setBank([]);setToast('بانک محلی پاک شد')}}><Trash2/> پاک‌سازی داده‌های محلی</button></div>
         <input ref={fileRef} type="file" accept=".json" hidden onChange={async e=>{const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());const n=await importBank(Array.isArray(d)?d:d.items||[]);setBank(getBankItems());setToast(`${n} مورد وارد شد`)}catch{setToast('فایل JSON معتبر نیست')}}}/>
       </section>}

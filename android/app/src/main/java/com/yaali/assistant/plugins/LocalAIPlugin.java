@@ -1,20 +1,21 @@
 package com.yaali.assistant.plugins;
 
-import androidx.activity.result.ActivityResult;
-import com.getcapacitor.annotation.ActivityCallback;
 import android.content.Intent;
 import android.app.Activity;
+import com.getcapacitor.ActivityResult;
+import com.getcapacitor.annotation.ActivityCallback;
 import android.net.Uri;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.PluginMethod;
 import java.io.*;
 
 @CapacitorPlugin(name = "LocalAI")
 public class LocalAIPlugin extends Plugin {
     private File loadedModel;
+    private boolean engineReady = false;
 
     @PluginMethod
     public void pickModel(PluginCall call) {
@@ -56,10 +57,10 @@ public class LocalAIPlugin extends Plugin {
     public void loadModel(PluginCall call){
         String path=call.getString("path",""); if(path.isEmpty()){call.reject("path is required");return;}
         File f=new File(path); if(!f.exists()||!f.isFile()){call.reject("Model not found");return;}
-        loadedModel=f; JSObject r=new JSObject();r.put("loaded",true);r.put("path",f.getAbsolutePath());r.put("name",f.getName());r.put("sizeBytes",f.length());call.resolve(r);
+        loadedModel=f; engineReady=false; JSObject r=new JSObject();r.put("loaded",false);r.put("imported",true);r.put("engineReady",false);r.put("path",f.getAbsolutePath());r.put("name",f.getName());r.put("sizeBytes",f.length());r.put("error","GGUF imported; native llama.cpp engine is not bundled in this build");call.resolve(r);
     }
-    @PluginMethod public void unloadModel(PluginCall call){loadedModel=null;call.resolve();}
-    @PluginMethod public void status(PluginCall call){JSObject r=new JSObject();r.put("loaded",loadedModel!=null);if(loadedModel!=null){r.put("path",loadedModel.getAbsolutePath());r.put("name",loadedModel.getName());r.put("sizeBytes",loadedModel.length());}call.resolve(r);}
+    @PluginMethod public void unloadModel(PluginCall call){loadedModel=null;engineReady=false;call.resolve();}
+    @PluginMethod public void status(PluginCall call){JSObject r=new JSObject();r.put("loaded",loadedModel!=null && engineReady);r.put("imported",loadedModel!=null);r.put("engineReady",engineReady);if(loadedModel!=null){r.put("path",loadedModel.getAbsolutePath());r.put("name",loadedModel.getName());r.put("sizeBytes",loadedModel.length());}call.resolve(r);}
     @PluginMethod public void generate(PluginCall call){
         call.reject("Local GGUF model is imported, but native llama.cpp inference is not bundled in this build.");
     }

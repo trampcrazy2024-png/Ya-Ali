@@ -1,51 +1,32 @@
 # Ya Ali — یا امیرالمؤمنین علی علیه السلام
 
-Persian-first offline-capable language assistant focused on Iraqi Arabic, Lebanese Arabic and American English.
+Persian-first offline-capable language assistant for Iraqi Arabic, Lebanese Arabic, and American English.
 
-## AI routes
-- Direct online Free-tier providers: OpenRouter, Gemini, Groq.
-- Multiple model fallback per provider.
-- Custom OpenAI-compatible endpoint for Ollama/LM Studio/LocalAI or another compatible local/network runtime.
-- Android Local GGUF model import/lifecycle bridge is included. Native inference requires a linked llama.cpp runtime in the Android APK.
-- When no AI route works, local language-bank search remains available.
+## AI modes
+- Online providers: OpenRouter, Gemini, Groq, plus any OpenAI-compatible endpoint.
+- Automatic online failure fallback to Local AI, then local language-bank search.
+- Local GGUF model import/status management is included. Direct on-device generation requires a native inference engine such as llama.cpp to be linked into the Android APK.
+- OpenAI-compatible endpoints can expose non-GGUF models through Ollama, LM Studio, or LocalAI on a reachable machine.
 
-## Language bank
-SQLite-backed repositories plus a local mirror, seed vocabulary/phrases, dialect metadata, pronunciation, examples, favorites, learned state and import/export.
+## Speech
+- Native Android speech recognition via `NativeSTT` with microphone permission.
+- Native Android TTS via `NativeTTS`.
+- Browser speech recognition/TTS fallback for non-native builds.
 
 ## Diagnostics
-The app includes a Persian `عیب‌یابی` tab with application logs, export/clear actions and best-effort Android logcat capture. Android sandbox/security restrictions can prevent an ordinary app from reading unrelated system logs.
+The Diagnostics tab exposes application logs and best-effort Android logcat output. Common authorization/API-key/token/password values are redacted before display.
 
-## Brand
-App name: **Ya Ali**
-Persian title: **یا امیرالمؤمنین علی علیه السلام**
+## Supported learning targets
+- American English (`en-US`)
+- Iraqi Arabic (`ar-IQ`)
+- Lebanese Arabic (`ar-LB`)
 
-
-## Ya Ali final verification
-
-Project name: **Ya Ali** — **یا امیرالمؤمنین علی علیه السلام**.
-
-Primary learner language: Persian. Supported learning targets: American English (`en-US`), Iraqi Arabic (`ar-IQ`), and Lebanese Arabic (`ar-LB`).
-
-### AI modes
-
-1. Online free-tier providers: OpenRouter, Gemini, and Groq (provider availability and quotas can change).
-2. OpenAI-compatible endpoint: useful for Ollama, LM Studio, LocalAI, or another compatible local/network runtime.
-3. Native local GGUF: the Android app provides model import/management and exposes a native LocalAI interface. A GGUF file alone is not an inference engine; a compatible native `llama.cpp` library must be bundled for on-device generation.
-4. Local Language Bank remains available as a deterministic offline fallback.
-
-### Diagnostics
-
-The Diagnostics tab stores application logs and can request available Android logcat output. Android security restrictions may prevent an ordinary app from reading protected logs from other processes; the app therefore shows whatever logcat the OS permits and redacts common credentials/tokens before display.
-
-### Verification
-
+## Commands
 ```bash
 npm ci
 npm run typecheck
 npm test
 npm run build
 npm run android:sync
-cd android && gradle --no-daemon assembleDebug
+npm run android:build
 ```
-
-The GitHub Actions workflow also runs the web checks and builds a debug APK artifact.

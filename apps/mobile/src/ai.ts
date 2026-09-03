@@ -50,11 +50,18 @@ async function openrouter(messages:ChatMessage[]) {
 }
 async function gemini(messages:ChatMessage[]) {
   const prompt=messages.map(m=>`${m.role.toUpperCase()}: ${m.content}`).join('\n');
-  const data=await request(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(getGeminiApiKey())}`,{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:.7,maxOutputTokens:700}})
-  });
-  return String(data?.candidates?.[0]?.content?.parts?.map((p:any)=>p?.text||'').join('')||'').trim();
+  const errors:string[]=[];
+  for(const model of ['gemini-2.5-flash','gemini-2.0-flash']) {
+    try {
+      const data=await request(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(getGeminiApiKey())}`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:.7,maxOutputTokens:700}})
+      });
+      const text=String(data?.candidates?.[0]?.content?.parts?.map((p:any)=>p?.text||'').join('')||'').trim();
+      if(text)return text;
+    } catch(e:any) { errors.push(`${model}: ${e?.message||String(e)}`); }
+  }
+  throw new Error(errors.join(' | '));
 }
 async function groq(messages:ChatMessage[]) {
   const errors:string[]=[];
