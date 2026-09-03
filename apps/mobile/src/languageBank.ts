@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { DatabaseManager, MigrationRunner, migration001, migration002LanguageBank, VocabularyRepository } from '@yaali/database';
 import type { LanguageBankItem } from '@yaali/database';
 import { PHRASES } from './data';
-import { CORE_WORDS } from './coreWords';
+
 
 const MIRROR_KEY = 'yaali_language_bank_v2';
 const db = new DatabaseManager();
@@ -21,7 +21,7 @@ export function phraseToBankItem(p: any): LanguageBankItem {
   return {
     id: `seed_${p.id}`,
     kind: 'phrase',
-    source_language: 'ar',
+    source_language: String(p.lang || '').toLowerCase() === 'english' ? 'en' : 'ar',
     target_language: 'fa',
     dialect: p.dialect || 'common',
     text: p.arabic || '',
@@ -52,32 +52,9 @@ function writeMirror(items: LanguageBankItem[]) {
 
 export async function initLanguageBank(): Promise<void> {
   if (ready) return;
-  const seeds = PHRASES.map(phraseToBankItem);
-  const wordSeeds: LanguageBankItem[] = CORE_WORDS.map(([text, translation], i) => {
-    const ts = now();
-    return {
-      id: `word_${i}_${text}`,
-      kind: 'word',
-      source_language: 'ar',
-      target_language: 'fa',
-      dialect: 'common',
-      text,
-      normalized_text: normalize(text),
-      translation,
-      transliteration: '',
-      pronunciation: '',
-      definition: translation,
-      level: 'A1-A2',
-      topic: 'core vocabulary',
-      tags: 'core,arabic,persian',
-      source: 'built-in Persian core vocabulary',
-      favorite: 0,
-      learned: 0,
-      notes: '',
-      created_at: ts,
-      updated_at: ts
-    };
-  });
+  const supported = PHRASES.filter((p:any)=>{ const d=String(p.dialect||''); return d.includes('عراقی') || d.includes('لبنانی') || d.includes('آمریکایی'); });
+  const seeds = supported.map(phraseToBankItem);
+  const wordSeeds: LanguageBankItem[] = [];
   const existing = readMirror();
   const map = new Map(existing.map(x => [x.id,x]));
   for (const s of [...seeds, ...wordSeeds]) if (!map.has(s.id)) map.set(s.id,s);

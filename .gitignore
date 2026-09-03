@@ -22,5 +22,11 @@ models/
 *.gguf
 *.bin
 *.onnx
-
-_extract_check/
+android/app/.cxx/
+android/app/build/
+android/.gradle/
+.cxx/
+android/app/.cxx/
+android/app/build/
+android/.gradle/
+.cxx/

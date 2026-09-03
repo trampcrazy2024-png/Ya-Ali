@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { BookOpen, Brain, Bot, Search, Languages, Settings as SettingsIcon, Send, Mic, Volume2, Star, Download, Upload, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { PHRASES } from './data';
+import { getLangCode } from './data';
 import { initLanguageBank, getBankItems, searchBank, saveBankItem, exportBank, importBank } from './languageBank';
-import { chat, configuredProviders, providerLabel } from './ai';
+import { chat, configuredProviders, providerLabel, testProvider } from './ai';
 import { getLogs, addLog, clearLogs, exportLogs, getNativeLogcat } from './diagnostics';
 import { listenSpeech } from './speech';
 import { localChat, localModelStatus, loadLocalModel } from './modelManager';
@@ -20,6 +21,11 @@ function speak(text:string,lang='ar-SA'){
     return;
   }
   try{const u=new SpeechSynthesisUtterance(text);u.lang=lang;u.rate=getSpeechSpeed();speechSynthesis.cancel();speechSynthesis.speak(u)}catch{}
+}
+
+async function copyText(text:string){
+  try{await navigator.clipboard.writeText(text);return true}catch{}
+  try{const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();const ok=document.execCommand('copy');ta.remove();return ok}catch{return false}
 }
 
 function localAnswer(text:string){
@@ -71,7 +77,6 @@ export default function App(){
     if(!Capacitor.isNativePlatform()) return;
     const onBack=()=>{
       if(tab!=='chat'){setTab('chat');setBackArmed(false);return}
-      if(backArmed){setBackArmed(false);setToast('برای خروج دوباره بازگشت را بزنید');return}
       setBackArmed(true);
       setToast('برای خروج، دوباره دکمه بازگشت را بزنید');
       window.setTimeout(()=>setBackArmed(false),2200);
@@ -81,7 +86,8 @@ export default function App(){
   },[tab,backArmed]);
 
   const results=useMemo(()=>searchBank(query,120),[query,bank]);
-  const current=PHRASES[learnIndex%PHRASES.length] as any;
+  const supportedPhrases=useMemo(()=>PHRASES.filter((p:any)=>{const d=String(p.dialect||'');return d.includes('عراقی')||d.includes('لبنانی')||d.includes('آمریکایی')}),[]);
+  const current=(supportedPhrases.length?supportedPhrases[learnIndex%supportedPhrases.length]:PHRASES[0]) as any;
 
   const send=async()=>{
     const text=input.trim();if(!text||busy)return;
@@ -136,7 +142,7 @@ export default function App(){
     ['dictionary','واژه‌نامه',BookOpen],['translator','مترجم',Languages],['settings','تنظیمات',SettingsIcon],['diagnostics','عیب‌یابی',SettingsIcon]
   ] as const;
 
-  return <div dir="rtl" className="app">
+  return <div dir="rtl" className={`app tab-${tab}`}>
     <header className="topbar">
       <div><div className="brand">Ya Ali</div><div className="subtitle">یا امیرالمؤمنین علی علیه السلام · دستیار هوشمند فارسی‌محور</div></div>
       <div className={online?'status online':'status'}>{online?<Wifi size={15}/>:<WifiOff size={15}/>} {online?'آنلاین':'آفلاین'}</div>
@@ -147,7 +153,7 @@ export default function App(){
         <div className="hero"><Bot size={28}/><div><h1>مکالمه هوشمند</h1><p>مکالمه طبیعی با AI آنلاین یا مدل محلی</p></div></div><div className="selectors"><label>زبان هدف<select value={dialect} onChange={e=>{const v=e.target.value as any;setDialect(v);setTargetLang(v==='american'?'en-US':v==='lebanese'?'ar-LB':'ar-IQ')}}><option value="iraqi">عربی عراقی</option><option value="lebanese">عربی لبنانی</option><option value="american">انگلیسی آمریکایی</option></select></label></div>
         <div className="messages">
           {messages.length===0&&<div className="empty"><Bot size={44}/><h2>سلام! 👋</h2><p>به فارسی بنویسید و با هوش مصنوعی مکالمه کنید.</p><p className="muted">برای AI رایگان، در تنظیمات یک یا چند کلید Free Tier وارد کنید.</p></div>}
-          {messages.map(m=><div key={m.id} className={'bubble '+m.role}><div className="bubbleText">{m.text}</div>{m.provider&&<small>{m.provider}</small>}{m.role==='assistant'&&<button className="iconBtn" onClick={()=>speak(m.text,targetLang.startsWith('ar')?targetLang:'en-US')}><Volume2 size={17}/></button>}</div>)}
+          {messages.map(m=><div key={m.id} className={'bubble '+m.role}><div className="bubbleText">{m.text}</div>{m.provider&&<small>{m.provider}</small>}{m.role==='assistant'&&<div className="bubbleActions"><button className="iconBtn" onClick={()=>speak(m.text,targetLang.startsWith('ar')?targetLang:'en-US')}><Volume2 size={17}/></button><button className="iconBtn" onClick={async()=>setToast((await copyText(m.text))?'کپی شد':'کپی ناموفق بود')} aria-label="کپی">کپی</button></div>}</div>)}
           {busy&&<div className="typing">در حال دریافت پاسخ هوشمند…</div>}<div ref={endRef}/>
         </div>
         <div className="composer">
@@ -166,7 +172,7 @@ export default function App(){
 
       {tab==='learn'&&<section className="panel learn">
         <h1>🧠 یادگیری و مرور</h1><p className="muted">مرور واقعی از بانک زبان؛ بدون آمار ساختگی.</p>
-        <div className="learnCard"><div className="label">عبارت</div><div className="big">{current.arabic}</div><div className="phon">{current.arabicPhoneticLatin}</div><button onClick={()=>speak(current.arabic,'ar-SA')} className="wide"><Volume2/> شنیدن تلفظ</button><div className="translation">{current.farsi}</div></div>
+        <div className="learnCard"><div className="label">عبارت</div><div className="big">{current.arabic}</div><div className="phon">{current.arabicPhoneticLatin}</div><button onClick={()=>speak(current.arabic,getLangCode(current.dialect,current.english?'arabic':'arabic'))} className="wide"><Volume2/> شنیدن تلفظ</button><div className="translation">{current.farsi}</div></div>
         <div className="learnActions"><button onClick={()=>{setLearnScore(s=>s+1);setLearnIndex(i=>i+1)}}>بلدم ✓</button><button onClick={()=>setLearnIndex(i=>i+1)}>دوباره</button></div><div className="score">مرورهای موفق این نشست: {learnScore}</div>
       </section>}
 
@@ -194,17 +200,17 @@ export default function App(){
         <label>Model<input value={customModel} onChange={e=>{setCustomModelState(e.target.value);setCustomModel(e.target.value)}} placeholder="llama / qwen / model name"/></label>
         <label>سرعت تلفظ: {speechSpeed.toFixed(2)}<input type="range" min=".5" max="1.5" step=".05" value={speechSpeed} onChange={e=>{const v=Number(e.target.value);setSpeed(v);setSpeechSpeed(v)}}/></label>
         <div className="notice"><strong>Local AI / GGUF</strong><br/>{localModel.engineReady?`✅ مدل فعال و آماده مکالمه: ${localModel.name||localModel.path}`:localModel.imported||localModel.path?`📦 مدل وارد شده: ${localModel.name||localModel.path} — موتور inference هنوز فعال نیست.`:'⏺ هیچ مدل محلی بارگذاری نشده است.'}<br/>مدل‌های GGUF برای اجرای مستقیم روی گوشی مناسب‌اند؛ مدل‌های دیگر را می‌توان از طریق Custom OpenAI-compatible endpoint (Ollama/LM Studio/LocalAI روی یک دستگاه در شبکه) استفاده کرد.<div className="settingsRow"><button onClick={async()=>{const r=await loadLocalModel();setLocalModel(r);setToast(r.engineReady?`مدل ${r.name||''} فعال شد`:(r.imported?`مدل ${r.name||''} وارد شد؛ موتور محلی هنوز فعال نیست`:(r.error||'مدل بارگذاری نشد')));await addLog(r.loaded?'info':'warn',`local model load: ${r.loaded?'ok':r.error||'failed'}`);setLogs(getLogs())}}>انتخاب و بارگذاری مدل محلی</button></div></div>
-        <div className="providerGrid"><span>🎯 هدف: Persian → Iraqi / Lebanese / American English</span>{configuredProviders().map(p=><span key={p}>✓ {providerLabel(p)}</span>)}{configuredProviders().length===0&&<span>⚠️ هنوز AI آنلاین تنظیم نشده</span>}</div>
+        <div className="providerGrid"><span>🎯 هدف: Persian → Iraqi / Lebanese / American English</span>{configuredProviders().map(p=><span key={p}>✓ {providerLabel(p)}</span>)}{configuredProviders().length===0&&<span>⚠️ هنوز AI آنلاین تنظیم نشده</span>}</div><div className="settingsRow"><button onClick={async()=>{for(const p of configuredProviders()){const r=await testProvider(p);await addLog(r.ok?'info':'error',`${providerLabel(p)} test ${r.ok?'OK':'FAILED'} ${r.latencyMs}ms — ${r.message}`)}setLogs(getLogs());setToast('تست سرویس‌ها انجام شد؛ نتیجه در عیب‌یابی ثبت شد')}}>تست اتصال همه AI</button></div>
         <div className="settingsRow"><button onClick={()=>fileRef.current?.click()}><Upload/> وارد کردن بانک</button><button onClick={()=>{const blob=new Blob([exportBank()],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ya-ali-language-bank.json';a.click();URL.revokeObjectURL(a.href)}}><Download/> خروجی بانک</button><button onClick={()=>{localStorage.removeItem('yaali_language_bank_v2');setBank([]);setToast('بانک محلی پاک شد')}}><Trash2/> پاک‌سازی داده‌های محلی</button></div>
         <input ref={fileRef} type="file" accept=".json" hidden onChange={async e=>{const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());const n=await importBank(Array.isArray(d)?d:d.items||[]);setBank(getBankItems());setToast(`${n} مورد وارد شد`)}catch{setToast('فایل JSON معتبر نیست')}}}/>
       </section>}
       {tab==='diagnostics'&&<section className="panel diagnostics">
         <h1>🛠 عیب‌یابی و Log</h1>
         <p className="muted">گزارش‌های برنامه و در Android، logcat قابل مشاهده است. اطلاعاتی که سیستم‌عامل اجازه خواندن بدهد نمایش داده می‌شود.</p>
-        <div className="settingsRow"><button onClick={async()=>{const x=await getNativeLogcat();setNativeLogcat(x);await addLog('debug','native logcat refreshed');setLogs(getLogs())}}>دریافت Logcat</button><button onClick={()=>setLogs(getLogs())}>به‌روزرسانی</button><button onClick={()=>{const b=new Blob([exportLogs()],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='ya-ali-diagnostics.json';a.click();URL.revokeObjectURL(a.href)}}>خروجی لاگ</button><button onClick={()=>{clearLogs();setLogs([])}}>پاک کردن لاگ برنامه</button></div>
+        <div className="settingsRow"><button onClick={async()=>{const x=await getNativeLogcat();setNativeLogcat(x);await addLog('debug','native logcat refreshed');setLogs(getLogs())}}>دریافت Logcat</button><button onClick={async()=>setToast((await copyText(nativeLogcat))?'Logcat کپی شد':'کپی Logcat ناموفق بود')}>کپی Logcat</button><button onClick={()=>setLogs(getLogs())}>به‌روزرسانی</button><button onClick={()=>{const b=new Blob([exportLogs()],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='ya-ali-diagnostics.json';a.click();URL.revokeObjectURL(a.href)}}>خروجی لاگ</button><button onClick={()=>{clearLogs();setLogs([])}}>پاک کردن لاگ برنامه</button></div>
         <div className="logbox">{logs.slice().reverse().map((x,i)=><div key={i}>[{x.time}] [{x.level}] {x.message}</div>)}</div>
         <h2>Android Logcat</h2><pre className="logbox native">{nativeLogcat||'برای دریافت، دکمه Logcat را بزنید.'}</pre>
-        <h2>Local AI</h2><div className="notice">{localModel.loaded?`مدل بارگذاری شده: ${localModel.name||localModel.path}`:'مدل محلی هنوز بارگذاری نشده است.'}</div>
+        <h2>Local AI</h2><div className="notice">{localModel.loaded?`✅ مدل فعال: ${localModel.name||localModel.path}`:localModel.imported?`📦 مدل وارد شده ولی آماده اجرا نیست: ${localModel.name||localModel.path}`:'⏺ مدل محلی بارگذاری نشده است.'}<br/>{localModel.error||''}</div>
         <button className="primary wide" onClick={async()=>{const r=await loadLocalModel();setLocalModel(r);await addLog(r.loaded?'info':'warn',`local model: ${r.loaded?'loaded':'not loaded'} ${r.error||''}`);setLogs(getLogs())}}>بررسی/بارگذاری مدل محلی</button>
       </section>}
 

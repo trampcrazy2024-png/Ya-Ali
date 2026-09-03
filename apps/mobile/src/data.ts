@@ -27,13 +27,10 @@ export const CATEGORIES = [
 
 // Quick-filter dialect chips shown in the dictionary (based on the `dialect` field).
 export const DIALECT_FILTERS = [
-  { id: "all", label: "همه لهجه‌ها" },
-  { id: "عراقی", label: "عراقی" },
-  { id: "لبنانی", label: "لبنانی / شامی" },
-  { id: "خلیجی", label: "خلیجی" },
-  { id: "مصری", label: "مصری" },
-  { id: "آمریکایی", label: "انگلیسی آمریکایی" },
-  { id: "بریتانیایی", label: "انگلیسی بریتانیایی" }
+  { id: "all", label: "همه موارد پشتیبانی‌شده" },
+  { id: "عراقی", label: "عربی عراقی" },
+  { id: "لبنانی", label: "عربی لبنانی" },
+  { id: "آمریکایی", label: "انگلیسی آمریکایی" }
 ];
 
 // Maps a phrase's free-text `dialect` label (+ optional `lang`) to a real

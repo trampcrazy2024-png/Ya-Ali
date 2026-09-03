@@ -30,6 +30,7 @@ public class NativeSTTPlugin extends Plugin {
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang);
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+        intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
         intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Ya Ali");
         startActivityForResult(call, intent, "speechResult");
     }

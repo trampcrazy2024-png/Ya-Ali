@@ -1,0 +1,2 @@
+# Copy to android/local.properties and adjust for your machine.
+sdk.dir=/opt/android-sdk
