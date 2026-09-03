@@ -37,3 +37,16 @@ body{padding:env(safe-area-inset-top) 0 0}
 .tab-translator .panel{background:linear-gradient(145deg,#121e2b,#101827)}
 .tab-settings .panel{background:linear-gradient(145deg,#241527,#111827)}
 .tab-diagnostics .panel{background:linear-gradient(145deg,#21161a,#0e1722)}
+
+/* Ya Ali 2026 visual system */
+.app{transition:background .25s ease}
+.tab-chat{--tab-a:#17c9ae;--tab-b:#0d6efd}.tab-search{--tab-a:#9b7cff;--tab-b:#f472b6}.tab-learn{--tab-a:#84cc16;--tab-b:#22c55e}.tab-dictionary{--tab-a:#f59e0b;--tab-b:#ef4444}.tab-translator{--tab-a:#38bdf8;--tab-b:#6366f1}.tab-settings{--tab-a:#c084fc;--tab-b:#ec4899}.tab-diagnostics{--tab-a:#fb7185;--tab-b:#f97316}
+.tab-chat .hero,.tab-search .panel,.tab-learn .panel,.tab-dictionary .panel,.tab-translator .panel,.tab-settings .panel,.tab-diagnostics .panel{border-color:color-mix(in srgb,var(--tab-a) 28%,#203040);box-shadow:0 18px 55px color-mix(in srgb,var(--tab-b) 12%,transparent)}
+.bottomNav{background:linear-gradient(180deg,#09111ceF,#070b13FA)}
+.bottomNav button.active{color:var(--tab-a);text-shadow:0 0 18px color-mix(in srgb,var(--tab-a) 55%,transparent)}
+.bottomNav button.active svg{filter:drop-shadow(0 0 7px color-mix(in srgb,var(--tab-a) 55%,transparent))}
+.primary,.sendBtn{background:linear-gradient(135deg,var(--tab-a,#16a892),var(--tab-b,#16a892));box-shadow:0 8px 24px color-mix(in srgb,var(--tab-a,#16a892) 22%,transparent)}
+.learnCard{background:radial-gradient(circle at 15% 10%,color-mix(in srgb,var(--tab-a) 18%,#101f2b),#101f2b)}
+.settings select,.settings input{background:#0b1420}
+.notice select{margin-top:9px}
+@media(prefers-reduced-motion:no-preference){.panel{animation:panelIn .28s ease-out}.wordCard,.dictionary article{transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease}.wordCard:hover,.dictionary article:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--tab-a) 45%,#26384a);box-shadow:0 10px 25px #0004}}@keyframes panelIn{from{opacity:.65;transform:translateY(5px)}to{opacity:1;transform:none}}

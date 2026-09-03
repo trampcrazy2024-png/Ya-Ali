@@ -32,59 +32,74 @@ void unload_locked() {
     g_path.clear();
 }
 
-std::string make_prompt(const std::string &prompt) {
-    return prompt;
-}
 
-std::string generate_locked(const std::string &prompt, int max_tokens, float temperature) {
+std::string generate_locked(const std::string &raw_prompt, int max_tokens, float temperature) {
     if (!g_model || !g_ctx) return "Local llama.cpp engine is not ready";
     const llama_vocab *vocab = llama_model_get_vocab(g_model);
     if (!vocab) return "Model vocabulary is unavailable";
 
-    std::vector<llama_token> tokens(prompt.size() + 512);
-    int32_t n = llama_tokenize(vocab, prompt.c_str(), (int32_t)prompt.size(), tokens.data(), (int32_t)tokens.size(), true, false);
-    if (n < 0) {
-        tokens.resize((size_t)-n + 8);
-        n = llama_tokenize(vocab, prompt.c_str(), (int32_t)prompt.size(), tokens.data(), (int32_t)tokens.size(), true, false);
+    // Use the GGUF model's own chat template whenever available. This is
+    // important for Llama/Qwen/Gemma-style instruct models: feeding a plain
+    // "user:/assistant:" transcript often produces poor or apparently stuck output.
+    std::string prompt = raw_prompt;
+    const char *tmpl = llama_model_chat_template(g_model, nullptr);
+    if (tmpl && *tmpl) {
+        llama_chat_message msg{ "user", raw_prompt.c_str() };
+        int need = llama_chat_apply_template(tmpl, &msg, 1, true, nullptr, 0);
+        if (need > 0) {
+            std::vector<char> formatted((size_t)need + 1);
+            int written = llama_chat_apply_template(tmpl, &msg, 1, true, formatted.data(), (int32_t)formatted.size());
+            if (written > 0) prompt.assign(formatted.data(), (size_t)written);
+        }
     }
+
+    const int32_t needed = -llama_tokenize(vocab, prompt.c_str(), (int32_t)prompt.size(), nullptr, 0, true, true);
+    if (needed <= 0) return "Unable to tokenize prompt";
+    std::vector<llama_token> tokens((size_t)needed);
+    const int32_t n = llama_tokenize(vocab, prompt.c_str(), (int32_t)prompt.size(), tokens.data(), (int32_t)tokens.size(), true, true);
     if (n <= 0) return "Unable to tokenize prompt";
     tokens.resize((size_t)n);
-    const size_t max_prompt = (size_t)std::max<uint32_t>(1024, llama_n_ctx(g_ctx) > 256 ? llama_n_ctx(g_ctx) - 256 : 1024);
-    if (tokens.size() > max_prompt) {
+
+    const int32_t n_ctx = (int32_t)llama_n_ctx(g_ctx);
+    const int32_t reserve = std::min(512, std::max(128, max_tokens));
+    const int32_t max_prompt = std::max(256, n_ctx - reserve);
+    if ((int32_t)tokens.size() > max_prompt) {
         std::vector<llama_token> trimmed;
-        const size_t head = std::min<size_t>(128, max_prompt / 4);
-        trimmed.insert(trimmed.end(), tokens.begin(), tokens.begin() + head);
-        trimmed.insert(trimmed.end(), tokens.end() - (max_prompt - head), tokens.end());
+        const size_t keep_head = std::min<size_t>(64, (size_t)max_prompt / 5);
+        trimmed.insert(trimmed.end(), tokens.begin(), tokens.begin() + keep_head);
+        trimmed.insert(trimmed.end(), tokens.end() - ((size_t)max_prompt - keep_head), tokens.end());
         tokens.swap(trimmed);
     }
 
     llama_memory_clear(llama_get_memory(g_ctx), true);
     llama_batch batch = llama_batch_get_one(tokens.data(), (int32_t)tokens.size());
-    if (llama_decode(g_ctx, batch) < 0) return "Initial prompt decode failed";
+    if (llama_decode(g_ctx, batch) != 0) return "Initial prompt decode failed";
 
     auto sampler_params = llama_sampler_chain_default_params();
     llama_sampler *sampler = llama_sampler_chain_init(sampler_params);
     if (!sampler) return "Sampler initialization failed";
-    llama_sampler_chain_add(sampler, llama_sampler_init_top_k(40));
-    llama_sampler_chain_add(sampler, llama_sampler_init_top_p(0.92f, 1));
-    llama_sampler_chain_add(sampler, llama_sampler_init_temp(std::max(0.05f, std::min(1.5f, temperature))));
+    llama_sampler_chain_add(sampler, llama_sampler_init_min_p(0.05f, 1));
+    llama_sampler_chain_add(sampler, llama_sampler_init_temp(std::max(0.05f, std::min(1.2f, temperature))));
     llama_sampler_chain_add(sampler, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
 
     std::string output;
     output.reserve((size_t)max_tokens * 4);
     for (int i = 0; i < max_tokens; ++i) {
+        const int32_t used = (int32_t)llama_memory_seq_pos_max(llama_get_memory(g_ctx), 0) + 1;
+        if (used >= n_ctx) break;
         llama_token id = llama_sampler_sample(sampler, g_ctx, -1);
-        llama_sampler_accept(sampler, id);
         if (llama_vocab_is_eog(vocab, id)) break;
-        char buf[256];
+        llama_sampler_accept(sampler, id);
+        char buf[512];
         int32_t piece = llama_token_to_piece(vocab, id, buf, sizeof(buf), 0, true);
         if (piece < 0) break;
         output.append(buf, (size_t)piece);
-        if (output.size() > 16000) break;
+        if (output.size() > 24000) break;
         llama_batch next = llama_batch_get_one(&id, 1);
-        if (llama_decode(g_ctx, next) < 0) break;
+        if (llama_decode(g_ctx, next) != 0) break;
     }
     llama_sampler_free(sampler);
+    if (output.empty()) return "Local model generated no text. Try a smaller GGUF model or a shorter prompt.";
     return output;
 }
 }

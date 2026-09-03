@@ -16,5 +16,5 @@ export const getSpeechSpeed=()=>Number(get(K.speed)||'0.95');
 export const setSpeechSpeed=(v:number)=>set(K.speed,String(Math.max(.5,Math.min(1.5,v))));
 export const getCustomEndpoint=()=>get('yaali_custom_endpoint');
 export const setCustomEndpoint=(v:string)=>set('yaali_custom_endpoint',v);
-export const getCustomModel=()=>get('yaali_custom_model')||'llama-3.2-3b-instruct';
+export const getCustomModel=()=>get('yaali_custom_model');
 export const setCustomModel=(v:string)=>set('yaali_custom_model',v);

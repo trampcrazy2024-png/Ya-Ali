@@ -30,6 +30,7 @@ public class LocalAIPlugin extends Plugin {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private File loadedModel;
     private boolean engineReady = false;
+    private boolean generating = false;
     private String engineError = "";
 
     static {
@@ -100,9 +101,51 @@ public class LocalAIPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void listModels(PluginCall call) {
+        File dir = new File(getContext().getFilesDir(), MODEL_DIR);
+        JSArray arr = new JSArray();
+        if (dir.isDirectory()) {
+            File[] files = dir.listFiles((d, n) -> n != null && n.toLowerCase().endsWith(".gguf"));
+            if (files != null) {
+                java.util.Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+                for (File f : files) {
+                    JSObject item = new JSObject();
+                    item.put("path", f.getAbsolutePath());
+                    item.put("name", f.getName());
+                    item.put("sizeBytes", f.length());
+                    item.put("loaded", loadedModel != null && f.equals(loadedModel) && engineReady);
+                    arr.put(item);
+                }
+            }
+        }
+        JSObject out = new JSObject();
+        out.put("models", arr);
+        call.resolve(out);
+    }
+
+    @PluginMethod
+    public void deleteModel(PluginCall call) {
+        String path = call.getString("path", "");
+        if (path.isEmpty()) { call.reject("path is required"); return; }
+        File dir = new File(getContext().getFilesDir(), MODEL_DIR);
+        File f = new File(path);
+        try {
+            if (!f.getCanonicalPath().startsWith(dir.getCanonicalPath() + File.separator)) {
+                call.reject("Invalid model path"); return;
+            }
+            if (loadedModel != null && f.equals(loadedModel)) {
+                nativeUnloadModel(); loadedModel = null; engineReady = false; engineError = "";
+            }
+            JSObject out = new JSObject();
+            out.put("deleted", f.exists() && f.delete());
+            call.resolve(out);
+        } catch (Exception e) { call.reject("Cannot delete model: " + e.getMessage()); }
+    }
+
+    @PluginMethod
     public void loadModel(PluginCall call) {
         String path = call.getString("path", "");
-        int context = Math.max(1024, Math.min(8192, call.getInt("context", 4096)));
+        int context = Math.max(1024, Math.min(8192, call.getInt("context", 2048)));
         int threads = Math.max(1, Math.min(8, call.getInt("threads", Math.max(2, Runtime.getRuntime().availableProcessors() / 2))));
         if (path.isEmpty()) { call.reject("path is required"); return; }
         File f = new File(path);
@@ -115,14 +158,14 @@ public class LocalAIPlugin extends Plugin {
                 String error = nativeLoadModel(f.getAbsolutePath(), context, threads);
                 engineError = error == null ? "" : error;
                 engineReady = engineError.isEmpty();
-                loadedModel = f;
+                loadedModel = engineReady ? f : null;
                 JSObject r = modelStatusObject();
                 if (engineReady) r.put("loaded", true);
                 call.resolve(r);
             } catch (Throwable e) {
                 engineReady = false;
                 engineError = e.getMessage() == null ? e.toString() : e.getMessage();
-                loadedModel = f;
+                loadedModel = null;
                 call.resolve(modelStatusObject());
             }
         });
@@ -159,8 +202,9 @@ public class LocalAIPlugin extends Plugin {
         }
         JSArray messages = call.getArray("messages");
         String prompt = buildPrompt(messages);
-        int maxTokens = Math.max(64, Math.min(1024, call.getInt("maxTokens", 512)));
+        int maxTokens = Math.max(64, Math.min(1024, call.getInt("maxTokens", 384)));
         double temperature = Math.max(0.05, Math.min(1.5, call.getDouble("temperature", 0.7)));
+        generating = true;
         executor.execute(() -> {
             try {
                 String text = nativeGenerate(prompt, maxTokens, (float) temperature);
@@ -171,6 +215,8 @@ public class LocalAIPlugin extends Plugin {
                 call.resolve(out);
             } catch (Throwable e) {
                 call.reject("Local inference failed: " + (e.getMessage() == null ? e.toString() : e.getMessage()));
+            } finally {
+                generating = false;
             }
         });
     }
@@ -196,6 +242,7 @@ public class LocalAIPlugin extends Plugin {
         r.put("loaded", loadedModel != null && engineReady);
         r.put("imported", loadedModel != null);
         r.put("engineReady", engineReady);
+        r.put("generating", generating);
         if (loadedModel != null) {
             r.put("path", loadedModel.getAbsolutePath());
             r.put("name", loadedModel.getName());

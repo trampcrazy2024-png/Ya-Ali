@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { DatabaseManager, MigrationRunner, migration001, migration002LanguageBank, VocabularyRepository } from '@yaali/database';
 import type { LanguageBankItem } from '@yaali/database';
 import { PHRASES } from './data';
+import { SEED_WORDS } from './vocabularySeed';
 
 
 const MIRROR_KEY = 'yaali_language_bank_v2';
@@ -24,9 +25,9 @@ export function phraseToBankItem(p: any): LanguageBankItem {
     source_language: String(p.lang || '').toLowerCase() === 'english' ? 'en' : 'ar',
     target_language: 'fa',
     dialect: p.dialect || 'common',
-    text: p.arabic || '',
-    normalized_text: normalize(p.arabic || ''),
-    translation: p.farsi || p.english || '',
+    text: p.lang === 'english' ? (p.text || p.english || '') : (p.arabic || ''),
+    normalized_text: normalize(p.lang === 'english' ? (p.text || p.english || '') : (p.arabic || '')),
+    translation: p.farsi || p.translation || p.english || '',
     transliteration: p.arabicPhoneticLatin || '',
     pronunciation: p.arabicPhonetic || '',
     definition: p.english || '',
@@ -35,8 +36,8 @@ export function phraseToBankItem(p: any): LanguageBankItem {
     tags: [p.category,p.gender,p.dialect].filter(Boolean).join(','),
     ...(String(p.gender || '').includes('speaker') ? {speaker_gender: p.gender} : {}),
     ...(String(p.gender || '').includes('listener') ? {listener_gender: p.gender} : {}),
-    example_text: p.arabic || '',
-    example_translation: p.farsi || '',
+    example_text: p.example || p.arabic || p.text || '',
+    example_translation: p.exampleFa || p.farsi || '',
     source: 'built-in Persian language bank',
     favorite: 0, learned: 0, notes: p.audioTips || '',
     created_at: ts, updated_at: ts
@@ -54,7 +55,7 @@ export async function initLanguageBank(): Promise<void> {
   if (ready) return;
   const supported = PHRASES.filter((p:any)=>{ const d=String(p.dialect||''); return d.includes('عراقی') || d.includes('لبنانی') || d.includes('آمریکایی'); });
   const seeds = supported.map(phraseToBankItem);
-  const wordSeeds: LanguageBankItem[] = [];
+  const wordSeeds: LanguageBankItem[] = SEED_WORDS.map(w => phraseToBankItem({id:w.id, lang:w.lang, dialect:w.dialect, text:w.text, translation:w.translation, farsi:w.translation, english:w.lang==='english'?w.text:'', arabic:w.lang==='arabic'?w.text:'', arabicPhoneticLatin:w.transliteration, arabicPhonetic:w.pronunciation, category:w.category, example:w.example, exampleFa:w.exampleFa, audioTips:`${w.level} · ${w.category}`}));
   const existing = readMirror();
   const map = new Map(existing.map(x => [x.id,x]));
   for (const s of [...seeds, ...wordSeeds]) if (!map.has(s.id)) map.set(s.id,s);

@@ -6,7 +6,7 @@ export type ProviderId='openrouter'|'gemini'|'groq'|'custom';
 export type ChatMessage={role:'user'|'assistant'|'system';content:string};
 const timeoutMs=45000;
 const OPENROUTER_MODELS=['openrouter/free','meta-llama/llama-3.3-8b-instruct:free','qwen/qwen3-8b:free'];
-const GROQ_MODELS=['llama-3.3-70b-versatile','llama-3.1-8b-instant'];
+const GROQ_MODELS=['openai/gpt-oss-20b','openai/gpt-oss-120b'];
 
 async function request(url:string,init:RequestInit):Promise<any>{
   if(Capacitor.isNativePlatform()){
@@ -25,6 +25,24 @@ async function request(url:string,init:RequestInit):Promise<any>{
   const c=new AbortController();const t=setTimeout(()=>c.abort(),timeoutMs);
   try{const r=await fetch(url,{...init,signal:c.signal});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(`HTTP ${r.status}: ${data?.error?.message||data?.message||'request failed'}`);return data}finally{clearTimeout(t)}
 }
+export async function discoverCustomModels():Promise<string[]>{
+  const endpoint=getCustomEndpoint().trim().replace(/\/$/,'');
+  if(!endpoint) return [];
+  const out:string[]=[];
+  try{
+    const base=endpoint.replace(/\/v1\/chat\/completions$/,'').replace(/\/v1$/,'');
+    const d=await request(base+'/v1/models',{method:'GET'});
+    for(const m of (d?.data||[])) if(m?.id) out.push(String(m.id));
+  }catch{}
+  if(!out.length){
+    try{
+      const d=await request(endpoint.replace(/\/v1$/,'')+'/api/tags',{method:'GET'});
+      for(const m of (d?.models||[])) if(m?.name) out.push(String(m.name));
+    }catch{}
+  }
+  return [...new Set(out)];
+}
+
 export function configuredProviders():ProviderId[]{const p:ProviderId[]=[];if(getOpenRouterApiKey())p.push('openrouter');if(getGeminiApiKey())p.push('gemini');if(getGroqApiKey())p.push('groq');if(getCustomEndpoint())p.push('custom');return p}
 
 async function openrouter(messages:ChatMessage[]){const errors:string[]=[];for(const model of OPENROUTER_MODELS){try{const d=await request('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${getOpenRouterApiKey()}`,'HTTP-Referer':'https://yaali.local','X-Title':'Ya Ali'},body:JSON.stringify({model,messages,temperature:.7,max_tokens:900})});const t=String(d?.choices?.[0]?.message?.content||'').trim();if(t)return t}catch(e:any){errors.push(`${model}: ${e?.message||e}`)}}throw new Error(errors.join(' | '))}
