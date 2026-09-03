@@ -22,3 +22,5 @@ models/
 *.gguf
 *.bin
 *.onnx
+
+_extract_check/

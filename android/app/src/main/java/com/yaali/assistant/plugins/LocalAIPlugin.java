@@ -2,14 +2,14 @@ package com.yaali.assistant.plugins;
 
 import android.content.Intent;
 import android.app.Activity;
-import com.getcapacitor.ActivityResult;
+import androidx.activity.result.ActivityResult;
 import com.getcapacitor.annotation.ActivityCallback;
 import android.net.Uri;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.getcapacitor.annotation.PluginMethod;
+import com.getcapacitor.PluginMethod;
 import java.io.*;
 
 @CapacitorPlugin(name = "LocalAI")
