@@ -1,0 +1,226 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.11.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :app
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Configure project :capacitor-cordova-android-plugins
+WARNING: Using flatDir should be avoided because it doesn't support any meta-data formats.
+
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :capacitor-android:preBuild UP-TO-DATE
+> Task :capacitor-android:preDebugBuild UP-TO-DATE
+> Task :capacitor-android:writeDebugAarMetadata UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:preBuild UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:preDebugBuild UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:writeDebugAarMetadata UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :capacitor-android:generateDebugResValues UP-TO-DATE
+> Task :capacitor-android:generateDebugResources UP-TO-DATE
+> Task :capacitor-android:packageDebugResources UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:generateDebugResValues UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:generateDebugResources UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:packageDebugResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-android:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-android:processDebugManifest UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:extractDeepLinksDebug UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:processDebugManifest UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :capacitor-android:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-android:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-android:generateDebugRFile UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:compileDebugLibraryResources UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:parseDebugLocalResources UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:generateDebugRFile UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :capacitor-android:javaPreCompileDebug UP-TO-DATE
+> Task :capacitor-android:compileDebugJavaWithJavac UP-TO-DATE
+> Task :capacitor-android:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:javaPreCompileDebug UP-TO-DATE
+> Task :capacitor-cordova-android-plugins:compileDebugJavaWithJavac NO-SOURCE
+> Task :capacitor-cordova-android-plugins:bundleLibCompileToJarDebug UP-TO-DATE
+
+> Task :app:compileDebugJavaWithJavac FAILED
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/DiagnosticsPlugin.java:7: error: cannot find symbol
+import com.getcapacitor.annotation.PluginMethod;
+                                  ^
+  symbol:   class PluginMethod
+  location: package com.getcapacitor.annotation
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/NativeTTSPlugin.java:9: error: cannot find symbol
+import com.getcapacitor.annotation.PluginMethod;
+                                  ^
+  symbol:   class PluginMethod
+  location: package com.getcapacitor.annotation
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:11: error: cannot find symbol
+import com.getcapacitor.annotation.PluginMethod;
+                                  ^
+  symbol:   class PluginMethod
+  location: package com.getcapacitor.annotation
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:27: error: cannot find symbol
+    private void modelPicked(PluginCall call, ActivityResult result) {
+                                              ^
+  symbol:   class ActivityResult
+  location: class LocalAIPlugin
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/DiagnosticsPlugin.java:19: error: cannot find symbol
+    @PluginMethod
+     ^
+  symbol:   class PluginMethod
+  location: class DiagnosticsPlugin
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/DiagnosticsPlugin.java:29: error: cannot find symbol
+    @PluginMethod
+     ^
+  symbol:   class PluginMethod
+  location: class DiagnosticsPlugin
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/NativeTTSPlugin.java:28: error: cannot find symbol
+    @PluginMethod
+     ^
+  symbol:   class PluginMethod
+  location: class NativeTTSPlugin
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/NativeTTSPlugin.java:73: error: cannot find symbol
+    @PluginMethod
+     ^
+  symbol:   class PluginMethod
+  location: class NativeTTSPlugin
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:18: error: cannot find symbol
+    @PluginMethod
+     ^
+  symbol:   class PluginMethod
+  location: class LocalAIPlugin
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:26: error: cannot find symbol
+    @ActivityCallback
+     ^
+  symbol:   class ActivityCallback
+  location: class LocalAIPlugin
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:51: error: cannot find symbol
+    @PluginMethod
+     ^
+  symbol:   class PluginMethod
+  location: class LocalAIPlugin
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:54: error: cannot find symbol
+    @PluginMethod
+     ^
+  symbol:   class PluginMethod
+  location: class LocalAIPlugin
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:60: error: cannot find symbol
+    @PluginMethod public void unloadModel(PluginCall call){loadedModel=null;call.resolve();}
+     ^
+  symbol:   class PluginMethod
+  location: class LocalAIPlugin
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:61: error: cannot find symbol
+    @PluginMethod public void status(PluginCall call){JSObject r=new JSObject();r.put("loaded",loadedModel!=null);if(loadedModel!=null){r.put("path",loadedModel.getAbsolutePath());r.put("name",loadedModel.getName());r.put("sizeBytes",loadedModel.length());}call.resolve(r);}
+     ^
+  symbol:   class PluginMethod
+  location: class LocalAIPlugin
+/workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:62: error: cannot find symbol
+    @PluginMethod public void generate(PluginCall call){
+     ^
+  symbol:   class PluginMethod
+  location: class LocalAIPlugin
+Note: /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/NativeTTSPlugin.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+15 errors
+[Incubating] Problems report is available at: file:///workspaces/Ya-Ali/android/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugJavaWithJavac'.
+> Compilation failed; see the compiler output below.
+  Note: Recompile with -Xlint:deprecation for details.
+  Note: /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/NativeTTSPlugin.java uses or overrides a deprecated API.
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/DiagnosticsPlugin.java:7: error: cannot find symbol
+  import com.getcapacitor.annotation.PluginMethod;
+                                    ^
+    symbol:   class PluginMethod
+    location: package com.getcapacitor.annotation
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/NativeTTSPlugin.java:9: error: cannot find symbol
+  import com.getcapacitor.annotation.PluginMethod;
+                                    ^
+    symbol:   class PluginMethod
+    location: package com.getcapacitor.annotation
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:11: error: cannot find symbol
+  import com.getcapacitor.annotation.PluginMethod;
+                                    ^
+    symbol:   class PluginMethod
+    location: package com.getcapacitor.annotation
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:27: error: cannot find symbol
+      private void modelPicked(PluginCall call, ActivityResult result) {
+                                                ^
+    symbol:   class ActivityResult
+    location: class LocalAIPlugin
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/DiagnosticsPlugin.java:19: error: cannot find symbol
+      @PluginMethod
+       ^
+    symbol:   class PluginMethod
+    location: class DiagnosticsPlugin
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/DiagnosticsPlugin.java:29: error: cannot find symbol
+      @PluginMethod
+       ^
+    symbol:   class PluginMethod
+    location: class DiagnosticsPlugin
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/NativeTTSPlugin.java:28: error: cannot find symbol
+      @PluginMethod
+       ^
+    symbol:   class PluginMethod
+    location: class NativeTTSPlugin
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/NativeTTSPlugin.java:73: error: cannot find symbol
+      @PluginMethod
+       ^
+    symbol:   class PluginMethod
+    location: class NativeTTSPlugin
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:18: error: cannot find symbol
+      @PluginMethod
+       ^
+    symbol:   class PluginMethod
+    location: class LocalAIPlugin
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:26: error: cannot find symbol
+      @ActivityCallback
+       ^
+    symbol:   class ActivityCallback
+    location: class LocalAIPlugin
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:51: error: cannot find symbol
+      @PluginMethod
+       ^
+    symbol:   class PluginMethod
+    location: class LocalAIPlugin
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:54: error: cannot find symbol
+      @PluginMethod
+       ^
+    symbol:   class PluginMethod
+    location: class LocalAIPlugin
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:60: error: cannot find symbol
+      @PluginMethod public void unloadModel(PluginCall call){loadedModel=null;call.resolve();}
+       ^
+    symbol:   class PluginMethod
+    location: class LocalAIPlugin
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:61: error: cannot find symbol
+      @PluginMethod public void status(PluginCall call){JSObject r=new JSObject();r.put("loaded",loadedModel!=null);if(loadedModel!=null){r.put("path",loadedModel.getAbsolutePath());r.put("name",loadedModel.getName());r.put("sizeBytes",loadedModel.length());}call.resolve(r);}
+       ^
+    symbol:   class PluginMethod
+    location: class LocalAIPlugin
+  /workspaces/Ya-Ali/android/app/src/main/java/com/yaali/assistant/plugins/LocalAIPlugin.java:62: error: cannot find symbol
+      @PluginMethod public void generate(PluginCall call){
+       ^
+    symbol:   class PluginMethod
+    location: class LocalAIPlugin
+  15 errors
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights.
+
+BUILD FAILED in 18s
+38 actionable tasks: 1 executed, 37 up-to-date
