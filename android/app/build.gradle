@@ -26,6 +26,14 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    packaging {
+        resources {
+            excludes += [
+                "META-INF/LICENSE-1DS"
+            ]
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -59,8 +67,6 @@ dependencies {
     // Edge/local non-GGUF runtimes
     implementation "org.pytorch:executorch-android:1.4.0"
     implementation "com.microsoft.onnxruntime:onnxruntime-android:1.29.0"
-    implementation "com.microsoft.onnxruntime:onnxruntime-android-qnn:1.29.0"
-    implementation "org.pytorch:executorch-android-vulkan:1.4.0"
     implementation "com.google.ai.edge.litertlm:litertlm-android:0.16.1"
     def onnxGenAiAar = file("libs/onnxruntime-genai-android-0.15.2.aar")
     if (onnxGenAiAar.exists()) { implementation files(onnxGenAiAar) } else { logger.lifecycle("YaAli: optional ONNX Runtime GenAI Android AAR not present; generic ONNX runtime remains enabled.") }

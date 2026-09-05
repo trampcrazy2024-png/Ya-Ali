@@ -13,6 +13,7 @@ import com.google.ai.edge.litertlm.Backend;
 import com.google.ai.edge.litertlm.Engine;
 import com.google.ai.edge.litertlm.EngineConfig;
 import com.google.ai.edge.litertlm.Conversation;
+import com.google.ai.edge.litertlm.ConversationConfig;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -89,8 +90,7 @@ public class EdgeAIRuntimePlugin extends Plugin {
             if (!execuTorchModels.containsKey(modelPath)) execuTorchModels.put(modelPath, module);
         }
         try {
-            int status = module.load();
-            if (status != 0) throw new IllegalStateException("ExecuTorch load failed with status " + status);
+            module.load();
         } catch (NoSuchMethodError ignored) { /* lazy-load on generate for older API */ }
 
         final StringBuilder text = new StringBuilder();
@@ -123,7 +123,9 @@ public class EdgeAIRuntimePlugin extends Plugin {
         }
         final Conversation conversation;
         synchronized (liteRtConversations) {
-            conversation = liteRtConversations.containsKey(modelPath) ? liteRtConversations.get(modelPath) : engine.createConversation();
+            conversation = liteRtConversations.containsKey(modelPath)
+                    ? liteRtConversations.get(modelPath)
+                    : engine.createConversation(new ConversationConfig());
             if (!liteRtConversations.containsKey(modelPath)) liteRtConversations.put(modelPath, conversation);
         }
         final long started=System.currentTimeMillis();

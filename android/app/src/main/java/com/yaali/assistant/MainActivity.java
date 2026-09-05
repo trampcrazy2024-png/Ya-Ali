@@ -52,7 +52,7 @@ public class MainActivity extends BridgeActivity {
         if (Build.VERSION.SDK_INT < 33) { handleBack(); } else super.onBackPressed();
     }
 
-    @Override protected void onDestroy() {
+    @Override public void onDestroy() {
         if (Build.VERSION.SDK_INT >= 33) {
             getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(predictiveBackCallback);
         }
