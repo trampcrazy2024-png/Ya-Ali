@@ -1,0 +1,31 @@
+{
+  "name": "Ya-Ali — Langua AI",
+  "short_name": "Ya-Ali AI",
+  "description": "Offline-first personal language tutor and AI conversation companion",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "categories": [
+    "education",
+    "productivity",
+    "language"
+  ],
+  "icons": [
+    {
+      "src": "/icons/ya-ali-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/ya-ali-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

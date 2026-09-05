@@ -1,0 +1,2 @@
+Ya-Ali Professional 1.0.1
+Release repair: JSX/TypeScript/build consistency fixes

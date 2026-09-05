@@ -10,3 +10,10 @@ OpenRouter, Gemini, Groq and an OpenAI-compatible endpoint remain optional. Cust
 
 ## Diagnostics
 Provider connection tests record HTTP/DNS/API errors and latency. Android logcat remains best-effort because Android does not grant ordinary apps unrestricted access to every process' logs.
+
+## 0.5.0 Edge Runtime status
+- ExecuTorch Android 1.4.0: wired through `EdgeAIPlugin` for PTE text LLMs.
+- ONNX Runtime Android 1.29.0: included as the generic Android ONNX foundation.
+- ONNX Runtime GenAI 0.15.2: real Java generation path is available when the official source-built Android AAR is placed at `android/app/libs/onnxruntime-genai-android-0.15.2.aar`; run `scripts/setup-onnx-genai-android.sh` for the exact build recipe.
+- LiteRT-LM 0.16.1: packaged and capability-detected. Generation is intentionally not claimed until the upstream Android API can be bound without an unstable guessed signature.
+- Endpoint Lab detects OpenAI `/v1`, Responses, Ollama, LM Studio `/api/v1`, llama.cpp, LocalAI, vLLM and MLC compatibility.

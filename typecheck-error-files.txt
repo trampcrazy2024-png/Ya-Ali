@@ -1,0 +1,235 @@
+===== App.tsx =====
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { BookOpen, Brain, Bot, Search, Languages, Settings as SettingsIcon, Send, Mic, Volume2, Star, Download, Upload, Trash2, Wifi, WifiOff, Square, RotateCcw, Check, Clock3, RefreshCw, Copy, BarChart3 } from 'lucide-react';
+import { DIALECT_FILTERS, getLangCode } from './data';
+import { initLanguageBank, getBankItems, searchBank, saveBankItem, exportBank, importBank } from './languageBank';
+import { chat, configuredProviders, providerLabel, testProvider, discoverCustomModels } from './ai';
+import { getLogs, addLog, clearLogs, getNativeLogcat } from './diagnostics';
+import { listenSpeech, stopSpeech, speechAvailability } from './speech';
+import { localChat, localModelStatus, loadLocalModel, listLocalModels, deleteLocalModel, cancelLocalGeneration, getEdgeTokenizerPath, setEdgeTokenizerPath } from './modelManager';
+import { getSpeechSpeed, setSpeechSpeed, getOpenRouterApiKey, setOpenRouterApiKey, getGeminiApiKey, setGeminiApiKey, getGroqApiKey, setGroqApiKey, getHuggingFaceApiKey, setHuggingFaceApiKey, getCloudflareToken, setCloudflareToken, getCloudflareAccount, setCloudflareAccount, getCloudflareModel, setCloudflareModel, getCustomEndpoint, setCustomEndpoint, getCustomModel, setCustomModel, getCustomEndpointKey, setCustomEndpointKey } from './settings';
+import { getDueItems, getLearningStats, nextDueText, reviewItem, hydrateLearningStateFromSQLite, type ReviewRating } from './learning';
+import { buildLearningPlan, recordSkillOutcome } from './services/adaptiveLearning';
+import type { LearningSignal } from './learning';
+import { runDiagnostics, diagnosticsSummary, type DiagnosticCheck } from './services/diagnosticsEngine';
+import { listVoicePacks, downloadVoicePack, deleteDownloadedVoicePack, exportVoicePackManifest, type VoicePack } from './services/voicePackManager';
+import { DIALECT_PROFILES, buildDialectPrompt, getDialectProfile } from './services/dialectEngine';
+import { buildDialectLearningPlan, getDialectLearningState, normalizeDialectId, isSupportedDialect, recordDialectOutcome, dialectMasteryLabel, getDialectLearningInsights, getDialectDailyGoal, hydrateDialectLearningFromSQLite } from './services/dialectLearning';
+import { discoverAllConfiguredModels, type DiscoveredModel, inspectCustomEndpoint } from './ai';
+import { edgeRuntimeCapabilities } from './services/edgeAiRuntime';
+import { endpointPreset, type EndpointProbe } from './services/endpointMatrix';
+import { hydrateEndpointProfilesFromSQLite } from './services/endpointProfiles';
+import { createConversation, deleteConversation, exportConversations, getConversation, getCurrentConversationId, importConversations, listConversations, setCurrentConversationId, upsertConversation, type SavedConversation } from './conversationStore';
+import { privacyReport, redactSecrets, clearNonSecretAppCache, clearDiagnosticData } from './services/privacyCenter';
+import { benchmarkLocalModel, type PerformanceResult } from './services/performanceLab';
+import { getDeviceHealth, type DeviceHealth } from './services/deviceHealth';
+
+const NativeTTS = registerPlugin<any>('NativeTTS');
+const LocalAI = registerPlugin('LocalAI') as any;
+type Msg={id:string;role:'user'|'assistant';text:string;provider?:string};
+type Tab='chat'|'search'|'learn'|'dictionary'|'translator'|'settings'|'diagnostics';
+
+type TranslationParts={natural:string;literal:string;pronunciation:string;note:string;example:string};
+function parseTranslation(text:string):TranslationParts{
+  const out:TranslationParts={natural:'',literal:'',pronunciation:'',note:'',example:''};
+  const labels:[keyof TranslationParts,string[]][]=[['natural',['ترجمه طبیعی','natural']],['literal',['ترجمه تحت‌اللفظی','ترجمه تحت اللفظی','literal']],['pronunciation',['تلفظ','pronunciation']],['note',['نکته','note']],['example',['مثال','example']]];
+  for(const [key,names] of labels){const re=new RegExp(`(?:^|\\n)\\s*(?:${names.map(x=>x.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')).join('|')})\\s*[:：-]\\s*([^\\n]*)`,'i');const m=text.match(re);if(m)out[key]=(m[1]||'').trim();}
+  if(!out.natural) out.natural=text.trim();
+  return out;
+}
+
+async function speak(text:string,lang='ar-IQ'){
+  if(Capacitor.isNativePlatform()){
+    try{await NativeTTS.speak({text,lang,rate:getSpeechSpeed(),pitch:1});}
+    catch(e:any){await addLog('warn',`TTS failed: ${e?.message||e}`)}
+    return;
+  }
+  try{const u=new SpeechSynthesisUtterance(text);u.lang=lang;u.rate=getSpeechSpeed();speechSynthesis.cancel();speechSynthesis.speak(u)}catch{}
+}
+async function copyText(text:string){
+  try{await navigator.clipboard.writeText(text);return true}catch{}
+  try{const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();const ok=document.execCommand('copy');ta.remove();return ok}catch{return false}
+}
+function localAnswer(text:string){const exact=searchBank(text.trim(),3)[0];if(exact)return `پاسخ از بانک محلی:\n${exact.translation||exact.definition||exact.text}\n\nعبارت مرتبط: ${exact.text}`;return /[\u0600-\u06FF]/.test(text)?'مدل محلی یا سرویس آنلاین در دسترس نبود. بانک زبان محلی همچنان فعال است.':'The local language bank is available, but no AI model is currently ready.'}
+
+function similarityScore(a:string,b:string){if(!a||!b)return 0;const dp=Array.from({length:a.length+1},()=>Array<number>(b.length+1).fill(0));for(let i=0;i<=a.length;i++)dp[i]![0]=i;for(let j=0;j<=b.length;j++)dp[0]![j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)dp[i]![j]=a.charAt(i-1)===b.charAt(j-1)?dp[i-1]![j-1]! :1+Math.min(dp[i-1]![j]!,dp[i]![j-1]!,dp[i-1]![j-1]!);return Math.max(0,Math.round((1-dp[a.length]![b.length]!/Math.max(a.length,b.length))*100));}
+
+export default function App(){
+  const [tab,setTab]=useState<Tab>('chat');
+  const [online,setOnline]=useState(()=>navigator.onLine);
+  const [messages,setMessages]=useState<Msg[]>([]); const [input,setInput]=useState(''); const [busy,setBusy]=useState(false); const [listening,setListening]=useState(false); const [toast,setToast]=useState('');
+  const [conversationId,setConversationId]=useState(''); const [savedConversations,setSavedConversations]=useState<SavedConversation[]>([]); const conversationReady=useRef(false); const conversationImportRef=useRef<HTMLInputElement>(null);
+  const [bank,setBank]=useState(getBankItems()); const [query,setQuery]=useState(''); const [dialect,setDialect]=useState<'iraqi'|'lebanese'|'american'>('iraqi');
+  const [localModel,setLocalModel]=useState<any>({loaded:false}); const [localModels,setLocalModels]=useState<any[]>([]); const [customModels,setCustomModels]=useState<string[]>([]); const [customModelReady,setCustomModelReady]=useState(false);
+  const [logs,setLogs]=useState(getLogs()); const [nativeLogcat,setNativeLogcat]=useState(''); const [translateOut,setTranslateOut]=useState(''); const [targetLang,setTargetLang]=useState('ar-IQ'); const [translationMode,setTranslationMode]=useState<'target'|'persian'>('target');
+  const [learnIndex,setLearnIndex]=useState(0); const [learnScore,setLearnScore]=useState(0); const [showAnswer,setShowAnswer]=useState(false); const [learnFilter,setLearnFilter]=useState('all'); const [learnDialect,setLearnDialect]=useState<'iraqi'|'lebanese'|'gulf'|'saudi'|'egyptian'|'msa'|'american'>('iraqi'); const [pronunciationFeedback,setPronunciationFeedback]=useState(''); const [pronouncing,setPronouncing]=useState(false);
+  const [speechInfo,setSpeechInfo]=useState<any>(null);
+  const [diagChecks,setDiagChecks]=useState<DiagnosticCheck[]>([]); const [diagRunning,setDiagRunning]=useState(false);
+  const [voicePacks,setVoicePacks]=useState<VoicePack[]>(()=>listVoicePacks()); const [voiceBusy,setVoiceBusy]=useState<string>('');
+  const [discoveredModels,setDiscoveredModels]=useState<DiscoveredModel[]>([]); const [modelDiscoveryBusy,setModelDiscoveryBusy]=useState(false);
+  const [dialectTarget,setDialectTarget]=useState('iraqi');
+  const [privacy,setPrivacy]=useState(()=>privacyReport()); const [deviceHealth,setDeviceHealth]=useState<DeviceHealth|null>(null); const [benchmark,setBenchmark]=useState<PerformanceResult|null>(null); const [benchmarkBusy,setBenchmarkBusy]=useState(false);
+  const [orKey,setOrKey]=useState(getOpenRouterApiKey()); const [gemKey,setGemKey]=useState(getGeminiApiKey()); const [groqKey,setGroqKey]=useState(getGroqApiKey()); const [hfKey,setHfKey]=useState(getHuggingFaceApiKey()); const [cfToken,setCfToken]=useState(getCloudflareToken()); const [cfAccount,setCfAccount]=useState(getCloudflareAccount()); const [cfModel,setCfModel]=useState(getCloudflareModel());
+  const [customEndpoint,setCustomEndpointState]=useState(getCustomEndpoint()); const [customModel,setCustomModelState]=useState(getCustomModel()); const [customEndpointKey,setCustomEndpointKeyState]=useState(getCustomEndpointKey()); const [speechSpeed,setSpeed]=useState(getSpeechSpeed());
+  const [endpointProbe,setEndpointProbe]=useState<EndpointProbe|null>(null); const [endpointProbeBusy,setEndpointProbeBusy]=useState(false); const [edgeCaps,setEdgeCaps]=useState<any>(null);
+  const [importDialect,setImportDialect]=useState<'iraqi'|'lebanese'|'gulf'|'saudi'|'egyptian'|'msa'|'american'>('iraqi');
+  const fileRef=useRef<HTMLInputElement>(null); const endRef=useRef<HTMLDivElement>(null); const cancelRequested=useRef(false);
+
+  useEffect(()=>{
+    void initLanguageBank().then(async()=>{await hydrateLearningStateFromSQLite();await hydrateDialectLearningFromSQLite();await hydrateEndpointProfilesFromSQLite();setBank(getBankItems())});
+    void (async()=>{
+      const models=await listLocalModels(); setLocalModels(models);
+      const status=await localModelStatus();
+      const savedPath=localStorage.getItem('yaali_local_model')||'';
+      if(savedPath){
+        const r=await loadLocalModel(savedPath);
+        setLocalModel(r);
+        setLocalModels(await listLocalModels());
+        await addLog(r.engineReady?'info':'warn',`startup local model ${r.engineReady?'loaded':'failed'}: ${r.error||r.name||savedPath}`);
+        setLogs(getLogs());
+      } else setLocalModel(status);
+    })();
+    void speechAvailability().then(setSpeechInfo);
+    void edgeRuntimeCapabilities().then(setEdgeCaps);
+    setSavedConversations(listConversations());
+    const currentId=getCurrentConversationId();
+    const currentConversation=currentId?getConversation(currentId):null;
+    if(currentConversation){setConversationId(currentConversation.id);setMessages(currentConversation.messages);setDialect(currentConversation.dialect);setTargetLang(currentConversation.dialect==='american'?'en-US':currentConversation.dialect==='lebanese'?'ar-LB':'ar-IQ');}
+    else {const created=createConversation('iraqi');setConversationId(created.id);setSavedConversations(listConversations());}
+    conversationReady.current=true;
+    if(getCustomEndpoint())void discoverCustomModels().then(m=>{setCustomModels(m);setCustomModelReady(true);if(m.length&&!getCustomModel()){const first=m[0];if(first){setCustomModelState(first);setCustomModel(first)}}});
+  },[]);
+  useEffect(()=>{const onResize=()=>document.documentElement.style.setProperty('--vh',`${window.innerHeight*.01}px`);onResize();addEventListener('resize',onResize);return()=>removeEventListener('resize',onResize)},[]);
+  useEffect(()=>{const on=()=>setOnline(true),off=()=>setOnline(false);addEventListener('online',on);addEventListener('offline',off);return()=>{removeEventListener('online',on);removeEventListener('offline',off)}},[]);
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'})},[messages,busy]);
+  useEffect(()=>{void getDeviceHealth().then(setDeviceHealth)},[]);
+  useEffect(()=>{
+    if(!conversationReady.current||!conversationId) return;
+    const timer=window.setTimeout(()=>{
+      upsertConversation({id:conversationId,title:messages.find(m=>m.role==='user')?.text?.slice(0,48)||'مکالمه جدید',createdAt:getConversation(conversationId)?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),dialect,messages});
+      setSavedConversations(listConversations());
+    },120);
+    return()=>window.clearTimeout(timer);
+  },[messages,conversationId,dialect]);
+
+  useEffect(()=>{if(!Capacitor.isNativePlatform())return;const onBack=()=>{if(tab!=='chat'){setTab('chat');return}setToast('برای خروج، دوباره دکمه بازگشت را بزنید');};window.addEventListener('yaaliBack',onBack);return()=>window.removeEventListener('yaaliBack',onBack)},[tab]);
+
+  const supportedBank=useMemo(()=>bank.filter(x=>isSupportedDialect(x.dialect||x.source_language)),[bank]);
+  const results=useMemo(()=>searchBank(query,200).filter(x=>learnFilter==='all'||String(x.dialect||'').includes(learnFilter)),[query,bank,learnFilter]);
+  const due=useMemo(()=>getDueItems(supportedBank),[supportedBank]);
+  const learningPlan=useMemo(()=>buildLearningPlan(supportedBank,12),[supportedBank]);
+
+===== learning.ts =====
+  let stability=old.lastReview>0?old.stability:initialStability(g);
+  let difficulty=old.lastReview>0?nextDifficulty(old.difficulty,g):initialDifficulty(g);
+  let interval=0;
+  if(old.lastReview>0){
+    const r=retrievability(stability,elapsed);
+    stability=elapsed<1?shortTermStability(stability,g):(g===1?forgetStability(difficulty,stability,r):recallStability(difficulty,stability,r,g));
+    interval=g===1?1:nextInterval(stability,options?.retention??DEFAULT_RETENTION);
+  }else{
+    interval=g===1?0:nextInterval(stability,options?.retention??DEFAULT_RETENTION);
+  }
+  const lapses=old.lapses+(g===1?1:0); const reps=old.reps+(g===1?0:1);
+  const due=g===1?now+10*60*1000:now+interval*DAY;
+  const signalScores={...(old.signalScores||{})};
+  if(options?.signal)signalScores[options.signal]=clamp((signalScores[options.signal]||0)+(g===1?1:g===2?.35:-.15),-5,5);
+  const state:ReviewState={due,interval,ease:clamp(2.5-(difficulty-5)*.05,1.3,3.2),reps,lapses,lastRating:rating,lastReview:now,stability,difficulty,elapsedDays:elapsed,stateVersion:6,signalScores};
+  all[id]=state;write(all);
+  void persistReviewState(id,state as unknown as Record<string,unknown>);
+  void persistReviewLog({itemId:id,rating,...(options?.signal?{signal:options.signal}:{}),retentionTarget:options?.retention??DEFAULT_RETENTION,elapsedDays:elapsed,stability,difficulty,dueAt:due,reviewedAt:now,state:state as unknown as Record<string,unknown>});
+  void appendLearningEvent({itemId:id,skill:options?.signal,rating,signal:options?.signal?(g===1?1:g===2?.35:-.15):undefined,payload:{state,stability,difficulty,interval,lapses}});
+  return state;
+}
+
+export function recordLearningSignal(id:string,signal:LearningSignal,weight=1){
+  const all=read();const s=getReviewState(id);const scores={...(s.signalScores||{})};scores[signal]=clamp((scores[signal]||0)+clamp(weight,-2,2),-5,5);all[id]={...s,signalScores:scores,stateVersion:6};write(all);void appendLearningEvent({itemId:id,skill:signal,signal:weight,payload:{kind:'learning-signal'}});return all[id];
+}
+
+export function getDueItems(items:LanguageBankItem[],now=Date.now()):LanguageBankItem[]{
+  const store=read();
+  return items.filter(x=>(store[x.id]?.due||0)<=now).sort((a,b)=>adaptivePriority(b.id,now)-adaptivePriority(a.id,now));
+}
+
+
+===== endpointMatrix.ts =====
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { getCustomEndpointKey } from '../settings';
+const CapacitorHttp=registerPlugin<any>('CapacitorHttp');
+
+export type EndpointProtocol='openai-v1'|'openai-responses'|'ollama-v1'|'ollama-native'|'lmstudio-v1'|'llamacpp'|'localai'|'vllm'|'mlc'|'unknown';
+export type EndpointCapability='chat'|'responses'|'models'|'embeddings'|'generate'|'tags'|'health'|'streaming';
+export type EndpointProbe={baseUrl:string;ok:boolean;latencyMs:number;protocols:EndpointProtocol[];capabilities:EndpointCapability[];models:string[];endpoints:string[];chatPath?:string;message:string};
+
+function clean(v:string){return String(v||'').trim().replace(/\s+/g,'').replace(/\/$/,'')}
+export function endpointRoot(v:string){return clean(v).replace(/\/(v1|api\/v1)\/(chat\/completions|responses|models|embeddings|chat|models)$/,'').replace(/\/v1$/,'').replace(/\/api\/(chat|generate|tags|show|embeddings|embed|models)$/,'')}
+async function fetchJson(url:string,init:RequestInit={},timeout=9000){
+  if(Capacitor.isNativePlatform()){
+    const headers:any=Object.fromEntries(new Headers(init.headers).entries());const key=getCustomEndpointKey();if(key)headers.Authorization=`Bearer ${key}`;let data:any=init.body;if(typeof data==='string'){try{data=JSON.parse(data)}catch{}}
+    const r=await CapacitorHttp.request({url,method:init.method||'GET',headers,data,connectTimeout:timeout,readTimeout:timeout});let d:any=r?.data;if(typeof d==='string'){try{d=JSON.parse(d)}catch{}}return {r:{ok:r.status>=200&&r.status<300,status:r.status},d:d||{}};
+  }
+  const c=new AbortController();const t=window.setTimeout(()=>c.abort(),timeout);try{const r=await fetch(url,{...init,signal:c.signal});const text=await r.text();let d:any={};try{d=text?JSON.parse(text):{}}catch{d={raw:text}};return {r,d}}finally{window.clearTimeout(t)}
+}
+function modelsFrom(d:any){const xs=d?.data||d?.models||[];return Array.isArray(xs)?xs.map((x:any)=>String(x?.id||x?.name||x?.model||x?.key||'')).filter(Boolean):[]}
+export async function probeEndpoint(input:string):Promise<EndpointProbe>{
+  const base=endpointRoot(input);if(!base)return {baseUrl:'',ok:false,latencyMs:0,protocols:['unknown'],capabilities:[],models:[],endpoints:[],message:'Endpoint خالی است.'};
+  const start=performance.now();const protocols=new Set<EndpointProtocol>();const capabilities=new Set<EndpointCapability>();const endpoints:string[]=[];const models:string[]=[];
+  const probes:Array<[string,EndpointProtocol,EndpointCapability,(d:any)=>string[]]>=[
+    ['/v1/models','openai-v1','models',modelsFrom],['/api/v1/models','lmstudio-v1','models',modelsFrom],['/api/tags','ollama-native','tags',modelsFrom],
+    ['/v1/responses','openai-responses','responses',()=>[]],['/v1/embeddings','openai-v1','embeddings',()=>[]],['/api/embed','ollama-native','embeddings',()=>[]],
+    ['/api/embeddings','ollama-native','embeddings',()=>[]],['/api/generate','ollama-native','generate',()=>[]],['/health','vllm','health',()=>[]],['/healthz','localai','health',()=>[]],['/readyz','localai','health',()=>[]],
+    ['/api/v1/chat','lmstudio-v1','chat',()=>[]],['/completion','llamacpp','chat',()=>[]]
+  ];
+  for(const [path,kind,cap,map] of probes){try{const {r,d}=await fetchJson(base+path);if(r.ok||(r.status===405&&['responses','chat'].includes(cap))||(r.status===401)){protocols.add(kind);capabilities.add(cap);endpoints.push(path);models.push(...map(d));}}catch{}}
+  if(endpoints.includes('/v1/models')){protocols.add('llamacpp');protocols.add('localai');protocols.add('vllm');protocols.add('mlc');}
+  if(base.includes(':11434'))protocols.add('ollama-v1');
+  const hasOpenAI=protocols.has('openai-v1')||protocols.has('llamacpp')||protocols.has('localai')||protocols.has('vllm')||protocols.has('mlc');
+  let chatPath:string|undefined;if(endpoints.includes('/api/v1/chat'))chatPath='/api/v1/chat';else if(hasOpenAI)chatPath='/v1/chat/completions';else if(endpoints.includes('/api/generate'))chatPath='/api/generate';else if(endpoints.includes('/api/tags'))chatPath='/api/chat';else if(endpoints.includes('/completion'))chatPath='/completion';
+  if(chatPath)capabilities.add('chat');
+  const unique=[...new Set(models)];const latencyMs=Math.round(performance.now()-start);return {baseUrl:base,ok:endpoints.length>0,latencyMs,protocols:[...protocols],capabilities:[...capabilities],models:unique,endpoints,chatPath,message:endpoints.length?`Endpoint شناسایی شد · ${unique.length} مدل · ${latencyMs}ms`:'هیچ API شناخته‌شده‌ای پاسخ نداد.'};
+}
+export function endpointPreset(id:'ollama'|'lmstudio'|'llamacpp'|'localai'|'vllm'|'mlc'){const p={ollama:'http://192.168.1.10:11434',lmstudio:'http://192.168.1.10:1234',llamacpp:'http://192.168.1.10:8080',localai:'http://192.168.1.10:8080',vllm:'http://192.168.1.10:8000',mlc:'http://192.168.1.10:8000'};return p[id]}
+export const ENDPOINT_CATALOG=[
+  {id:'openai',label:'OpenAI-compatible',routes:['/v1/models','/v1/chat/completions','/v1/responses','/v1/embeddings']},
+  {id:'ollama',label:'Ollama',routes:['/api/tags','/api/chat','/api/generate','/api/embed','/api/embeddings','/api/show']},
+  {id:'lmstudio',label:'LM Studio',routes:['/api/v1/models','/api/v1/chat','/v1/models','/v1/chat/completions']},
+  {id:'llamacpp',label:'llama.cpp server',routes:['/v1/models','/v1/chat/completions','/completion']},
+  {id:'localai',label:'LocalAI',routes:['/v1/models','/v1/chat/completions','/readyz']},
+  {id:'vllm',label:'vLLM',routes:['/v1/models','/v1/chat/completions','/health']},
+  {id:'mlc',label:'MLC LLM',routes:['/v1/models','/v1/chat/completions']}
+] as const;
+
+===== endpointPersistence.ts =====
+import { getDatabaseManager } from '../languageBank';
+import type { EndpointProfile } from './endpointProfiles';
+
+export async function persistEndpointProfile(profile:EndpointProfile):Promise<void>{
+  try{
+    const db=await getDatabaseManager();
+    await db.execute(`INSERT OR REPLACE INTO endpoint_profiles (id,name,base_url,model,enabled,priority,protocols_json,capabilities_json,latency_ms,last_probe,failures,last_success,last_failure,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,[
+      profile.id,profile.name,profile.baseUrl,profile.model||null,profile.enabled?1:0,profile.priority,
+      JSON.stringify(profile.protocols),JSON.stringify(profile.capabilities),profile.latencyMs,profile.lastProbe||null,profile.failures||0,
+      profile.lastSuccess||null,profile.lastFailure||null,new Date().toISOString()
+    ]);
+  }catch{}
+}
+
+export async function deleteEndpointProfile(id:string):Promise<void>{try{const db=await getDatabaseManager();await db.execute('DELETE FROM endpoint_profiles WHERE id=?',[id]);}catch{}}
+
+export async function loadEndpointProfilesFromSQLite():Promise<EndpointProfile[]>{
+  try{
+    const db=await getDatabaseManager();
+    const result=await db.query('SELECT id,name,base_url,model,enabled,priority,protocols_json,capabilities_json,latency_ms,last_probe,failures,last_success,last_failure FROM endpoint_profiles ORDER BY priority DESC');
+    return (result.values||[]).map((row:any)=>({
+      id:String(row.id),name:String(row.name),baseUrl:String(row.base_url),
+      enabled:Number(row.enabled)!==0,priority:Number(row.priority||50),protocols:jsonArray(row.protocols_json),capabilities:jsonArray(row.capabilities_json),
+      latencyMs:Number(row.latency_ms||99999),failures:Number(row.failures||0),
+      ...(row.model!=null && row.model!=='' ? {model:String(row.model)} : {}),
+      ...(row.last_probe!=null ? {lastProbe:Number(row.last_probe)} : {}),
+      ...(row.last_success!=null ? {lastSuccess:Number(row.last_success)} : {}),
+      ...(row.last_failure!=null ? {lastFailure:Number(row.last_failure)} : {})
+    }));
+  }catch{return []}
+}
+function jsonArray(value:unknown):string[]{try{const x=JSON.parse(String(value||'[]'));return Array.isArray(x)?x.map(String):[]}catch{return []}}

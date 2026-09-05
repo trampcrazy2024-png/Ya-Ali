@@ -8,3 +8,6 @@ export * from './repositories/ConversationRepository';
 export * from './repositories/MessageRepository';
 export * from './repositories/UserMemoryRepository';
 export * from './repositories/VocabularyRepository';
+export * from './migrations/v003_learning';
+export * from './migrations/v004_learning_runtime';
+export * from './migrations/v005_learning_os';

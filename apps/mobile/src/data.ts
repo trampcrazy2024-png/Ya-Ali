@@ -39,22 +39,15 @@ export const DIALECT_FILTERS = [
 // to Saudi Arabic (ar-SA) for everything including English phrases.
 export function getLangCode(dialect: string, lang?: "arabic" | "english"): string {
   const d = dialect || "";
-  if (lang === "english") {
-    if (d.includes("آمریکایی")) return "en-US";
-    if (d.includes("بریتانیایی") || d.includes("انگلستان")) return "en-GB";
-    return "en-US";
-  }
-  if (d.includes("عراقی")) return "ar-IQ";
-  if (d.includes("خلیجی")) return "ar-SA";
-  if (d.includes("شامی") || d.includes("لبنانی") || d.includes("سوریه")) return "ar-LB";
-  if (d.includes("مصری")) return "ar-EG";
-  return "ar-SA";
+  if (lang === "english" || d.includes("آمریکایی")) return "en-US";
+  if (d.includes("لبنانی") || d.includes("شامی")) return "ar-LB";
+  return "ar-IQ";
 }
 
 // Fallback used when a caller only has raw text and no Phrase object
 // (e.g. AI-translated text). Detects Arabic-script vs Latin-script text.
 export function detectLangCode(text: string): string {
-  return /[\u0600-\u06FF]/.test(text) ? "ar-SA" : "en-US";
+  return /[\u0600-\u06FF]/.test(text) ? "ar-IQ" : "en-US";
 }
 
 export const PHRASES: Phrase[] = [

@@ -1,0 +1,59 @@
+===== SEARCH FOR getLangCode / langCode / getLanguageCode =====
+apps/mobile/src/data.ts:40:export function getLangCode(dialect: string, lang?: "arabic" | "english"): string {
+apps/mobile/src/data.ts:49:export function detectLangCode(text: string): string {
+apps/mobile/src/data.ts:1384:// British English. Each entry's `dialect` string matches getLangCode()'s
+apps/mobile/src/App.tsx.bak:4:import { DIALECT_FILTERS, getLangCode } from './data';
+apps/mobile/src/App.tsx.bak:162:  const pronunciationCoach=async()=>{if(!current||pronouncing)return;setPronouncing(true);setPronunciationFeedback('در حال گوش دادن…');try{const expected=String(current.text||'').trim();const lang=getLangCode(current.dialect,current.source_language==='en'?'english':'arabic');const spoken=await listenSpeech(lang);const a=spoken.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,'').trim();const b=expected.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,'').trim();if(!a){setPronunciationFeedback('صدایی تشخیص داده نشد.');return}const score=similarityScore(a,b);recordDialectOutcome(learnDialect,score>=85?'easy':score>=65?'good':'again','pronunciation');setPronunciationFeedback(`شباهت متنی: ${score}٪ · ${score>=85?'عالی — یک بار دیگر با ریتم طبیعی تکرار کن.':score>=65?'خوب — یک بار دیگر تمرین کن.':'نیاز به تمرین بیشتر دارد.'}`)}catch(e:any){setPronunciationFeedback(e?.message||'تمرین تلفظ ناموفق بود.')}finally{setPronouncing(false)}};
+apps/mobile/src/App.tsx.bak:183:      {tab==='search'&&<section className="panel"><h1>🔎 جستجوی بانک زبان</h1><p className="muted">جستجوی فارسی، عربی، انگلیسی، تلفظ، ترجمه، لهجه و موضوع.</p><div className="chips">{DIALECT_FILTERS.map(f=><button key={f.id} className={learnFilter===(f.id==='all'?'all':f.id)?'chip active':'chip'} onClick={()=>setLearnFilter(f.id==='all'?'all':f.id)}>{f.label}</button>)}</div><input className="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="مثلاً: فرودگاه، سلام، airport…"/><div className="count">{results.length.toLocaleString('fa-IR')} نتیجه از {supportedBank.length.toLocaleString('fa-IR')} مورد</div><div className="cards">{results.map(x=><div className="wordCard" key={x.id}><div className="word">{x.text}</div><div>{x.translation||x.definition}</div><div className="phon">{x.pronunciation||x.transliteration||'—'}</div><small>{x.dialect||'—'} · {x.topic||'عمومی'} · {x.level||'—'}</small><div className="cardActions"><button onClick={()=>void speak(x.text||'',getLangCode(x.dialect||'',x.source_language==='en'?'english':'arabic'))}><Volume2 size={16}/> تلفظ</button><button onClick={()=>void saveBankItem({...x,id:`fav_${Date.now()}`,favorite:1})}><Star size={16}/> ذخیره</button></div></div>)}</div></section>}
+apps/mobile/src/App.tsx.bak:185:      {tab==='learn'&&<section className="panel learn"><h1>🧠 یادگیری و مرور هوشمند</h1><p className="muted">FSRS-6 + Adaptive Learning: زمان مرور و اولویت تمرین از عملکرد واقعی شما یاد می‌گیرد.</p><div className="providerGrid"><span>FSRS-6 · retention 90%</span><span>پایداری میانگین: {stats.averageStability||0} روز</span><span>دشواری میانگین: {stats.averageDifficulty||0}/10</span><span>خطا/لپس: {stats.lapses||0}</span></div><div className="notice">اولویت تمرین از عقب‌افتادگی، دشواری، تعداد خطاها و مهارت ضعیف‌تر ساخته می‌شود؛ این لایه فاصله‌های FSRS را دستکاری نمی‌کند.</div><div className="miniStats"><span>کل: {stats.total.toLocaleString('fa-IR')}</span><span>موعد امروز: {stats.due.toLocaleString('fa-IR')}</span><span>یادگرفته: {stats.learned.toLocaleString('fa-IR')}</span><span>🔥 {stats.streak} روز پیاپی</span></div><div className="chips">{DIALECT_PROFILES.map(d=><button key={d.id} className={learnDialect===d.id?'chip active':'chip'} onClick={()=>{setLearnDialect(d.id);setLearnIndex(0);setShowAnswer(false)}}>{d.labelFa}</button>)}</div><div className="providerGrid"><span>🎯 {DIALECT_PROFILES.find(d=>d.id===learnDialect)?.labelFa}</span><span>تسلط: {Math.round(dialectState.mastery)}٪ · {dialectMasteryLabel(dialectState.mastery)}</span><span>اعتماد: {Math.round(dialectState.confidence)}٪</span><span>تمرین: {dialectState.exposure.toLocaleString('fa-IR')} · موفق: {dialectState.successes.toLocaleString('fa-IR')}</span><span>نگهداشت: {Math.round(dialectInsights.retention*100)}٪ · سطح: {dialectInsights.level}</span><span>هدف روزانه: {getDialectDailyGoal(learnDialect)} مورد</span></div><div className="notice">مسیر یادگیری این لهجه جداگانه امتیازدهی می‌شود؛ تمرین‌های شنیدار، تلفظ، مکالمه، واژگان، دستور و تشخیص لهجه با عملکرد شما وزن می‌گیرند و از اختلاط گونه‌ها جلوگیری می‌شود.</div>{current?<><div className="learnCard"><div className="label">{current.dialect} · {current.level} · {current.topic}</div><div className="big">{current.text}</div><div className="phon">{current.transliteration||current.pronunciation||'برای شنیدن از دکمه تلفظ استفاده کنید'}</div><button onClick={()=>void speak(current.text||'',getLangCode(current.dialect||'',current.source_language==='en'?'english':'arabic'))} className="wide"><Volume2/> شنیدن تلفظ</button><button onClick={()=>void pronunciationCoach()} className="wide coachBtn" disabled={pronouncing}><Mic/> {pronouncing?'در حال گوش دادن…':'تمرین تلفظ با میکروفن'}</button>{pronunciationFeedback&&<div className="coachFeedback">{pronunciationFeedback}</div>}{!showAnswer?<button className="primary wide" onClick={()=>setShowAnswer(true)}>نمایش معنی</button>:<div className="answerPanel"><div className="translation">{current.translation||current.definition}</div><p>{current.example_text||''}</p><p className="muted">{current.example_translation||''}</p><small><Clock3 size={13}/> {nextDueText(current.id)}</small></div>}</div><div className="learnActions"><button onClick={()=>void rateLearn('again')}><RotateCcw size={16}/> دوباره</button><button onClick={()=>void rateLearn('hard')}>سخت</button><button onClick={()=>void rateLearn('good')}><Check size={16}/> خوب</button><button onClick={()=>void rateLearn('easy')}>آسان</button></div><div className="score">موفقیت این نشست: {learnScore.toLocaleString('fa-IR')}</div></>:<div className="empty"><Brain size={40}/><h2>موردی برای مرور نیست</h2><p>بانک زبان را بررسی یا وارد کنید.</p></div>}</section>}
+apps/mobile/src/App.tsx.bak:187:      {tab==='dictionary'&&<section className="panel"><h1>📚 واژه‌نامه غنی</h1><p className="muted">تعریف، ترجمه، تلفظ، مثال، موضوع و سطح برای سه زبان هدف.</p><div className="chips">{['all','عراقی','لبنانی','آمریکایی'].map(x=><button key={x} className={learnFilter===x?'chip active':'chip'} onClick={()=>setLearnFilter(x)}>{filterLabel(x)}</button>)}</div><input className="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="واژه یا معنی را جستجو کنید…"/><div className="dictionary">{results.slice(0,60).map(x=><article key={x.id}><div className="dictHead"><h2>{x.text}</h2><span>{x.level||'A1'}</span></div><p>{x.definition||x.translation}</p><p className="phon">{x.pronunciation||x.transliteration||'—'}</p><p className="muted">{x.example_text||''}</p><p>{x.example_translation||''}</p><small>{x.dialect} · {x.topic||'عمومی'}</small><div className="cardActions"><button onClick={()=>void speak(x.text||'',getLangCode(x.dialect||'',x.source_language==='en'?'english':'arabic'))}><Volume2 size={15}/> تلفظ</button><button onClick={async()=>{reviewItem(x.id,'good');await saveBankItem({...x,learned:1});setToast('به مرورهای شما اضافه شد ✓')}}><Check size={15}/> یاد گرفتم</button></div></article>)}</div></section>}
+apps/mobile/src/App.tsx:28:import { DIALECT_FILTERS, getLangCode } from './data';
+apps/mobile/src/App.tsx:1665:          getLangCode(
+apps/mobile/src/App.tsx:2427:                            getLangCode(
+apps/mobile/src/App.tsx:2668:                        getLangCode(
+apps/mobile/src/App.tsx:2920:                            getLangCode(
+
+===== APP.TSX (LINES 1638-1680) =====
+  1638	    });
+  1639	  };
+  1640	
+  1641	
+  1642	  const pronunciationCoach =
+  1643	    async () => {
+  1644	      if (
+  1645	        !current ||
+  1646	        pronouncing
+  1647	      ) {
+  1648	        return;
+  1649	      }
+  1650	
+  1651	      setPronouncing(true);
+  1652	
+  1653	      setPronunciationFeedback(
+  1654	        'در حال گوش دادن…',
+  1655	      );
+  1656	
+  1657	      try {
+  1658	        const expected =
+  1659	          String(
+  1660	            current.text ||
+  1661	              '',
+  1662	          ).trim();
+  1663	
+  1664	        const lang =
+  1665	          getLangCode(
+  1666	            current.dialect,
+  1667	            current.source_language ===
+  1668	              'en'
+  1669	              ? 'english'
+  1670	              : 'arabic',
+  1671	          );
+  1672	
+  1673	        const spoken =
+  1674	          String(
+  1675	            (await listenSpeech(
+  1676	              lang,
+  1677	            )) || '',
+  1678	          );
+  1679	
+  1680	        const a =

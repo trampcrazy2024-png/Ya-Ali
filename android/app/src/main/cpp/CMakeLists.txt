@@ -29,3 +29,5 @@ add_library(yaali_llama_jni SHARED yaali_llama_jni.cpp)
 target_include_directories(yaali_llama_jni PRIVATE ${llama_SOURCE_DIR}/include ${llama_SOURCE_DIR}/ggml/include)
 target_link_libraries(yaali_llama_jni PRIVATE llama log android)
 target_compile_definitions(yaali_llama_jni PRIVATE ANDROID=1)
+# Explicit 16 KB ELF page alignment for Android 15/16 class devices; NDK r28 also enables this by default.
+target_link_options(yaali_llama_jni PRIVATE "-Wl,-z,max-page-size=16384" "-Wl,-z,common-page-size=16384")

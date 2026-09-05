@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <android/log.h>
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <mutex>
 #include <string>
@@ -17,6 +18,7 @@ llama_model * g_model = nullptr;
 llama_context * g_ctx = nullptr;
 std::string g_path;
 int g_threads = 4;
+std::atomic<bool> g_cancel{false};
 
 std::string jstr(JNIEnv *env, jstring s) {
     if (!s) return {};
@@ -34,9 +36,10 @@ void unload_locked() {
 
 
 std::string generate_locked(const std::string &raw_prompt, int max_tokens, float temperature) {
-    if (!g_model || !g_ctx) return "Local llama.cpp engine is not ready";
+    g_cancel.store(false);
+    if (!g_model || !g_ctx) return "__YAALI_ERROR__Local llama.cpp engine is not ready";
     const llama_vocab *vocab = llama_model_get_vocab(g_model);
-    if (!vocab) return "Model vocabulary is unavailable";
+    if (!vocab) return "__YAALI_ERROR__Model vocabulary is unavailable";
 
     // Use the GGUF model's own chat template whenever available. This is
     // important for Llama/Qwen/Gemma-style instruct models: feeding a plain
@@ -54,10 +57,10 @@ std::string generate_locked(const std::string &raw_prompt, int max_tokens, float
     }
 
     const int32_t needed = -llama_tokenize(vocab, prompt.c_str(), (int32_t)prompt.size(), nullptr, 0, true, true);
-    if (needed <= 0) return "Unable to tokenize prompt";
+    if (needed <= 0) return "__YAALI_ERROR__Unable to tokenize prompt";
     std::vector<llama_token> tokens((size_t)needed);
     const int32_t n = llama_tokenize(vocab, prompt.c_str(), (int32_t)prompt.size(), tokens.data(), (int32_t)tokens.size(), true, true);
-    if (n <= 0) return "Unable to tokenize prompt";
+    if (n <= 0) return "__YAALI_ERROR__Unable to tokenize prompt";
     tokens.resize((size_t)n);
 
     const int32_t n_ctx = (int32_t)llama_n_ctx(g_ctx);
@@ -73,11 +76,11 @@ std::string generate_locked(const std::string &raw_prompt, int max_tokens, float
 
     llama_memory_clear(llama_get_memory(g_ctx), true);
     llama_batch batch = llama_batch_get_one(tokens.data(), (int32_t)tokens.size());
-    if (llama_decode(g_ctx, batch) != 0) return "Initial prompt decode failed";
+    if (llama_decode(g_ctx, batch) != 0) return "__YAALI_ERROR__Initial prompt decode failed";
 
     auto sampler_params = llama_sampler_chain_default_params();
     llama_sampler *sampler = llama_sampler_chain_init(sampler_params);
-    if (!sampler) return "Sampler initialization failed";
+    if (!sampler) return "__YAALI_ERROR__Sampler initialization failed";
     llama_sampler_chain_add(sampler, llama_sampler_init_min_p(0.05f, 1));
     llama_sampler_chain_add(sampler, llama_sampler_init_temp(std::max(0.05f, std::min(1.2f, temperature))));
     llama_sampler_chain_add(sampler, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
@@ -85,6 +88,7 @@ std::string generate_locked(const std::string &raw_prompt, int max_tokens, float
     std::string output;
     output.reserve((size_t)max_tokens * 4);
     for (int i = 0; i < max_tokens; ++i) {
+        if (g_cancel.load()) { llama_sampler_free(sampler); return "__YAALI_CANCELLED__"; }
         const int32_t used = (int32_t)llama_memory_seq_pos_max(llama_get_memory(g_ctx), 0) + 1;
         if (used >= n_ctx) break;
         llama_token id = llama_sampler_sample(sampler, g_ctx, -1);
@@ -99,7 +103,7 @@ std::string generate_locked(const std::string &raw_prompt, int max_tokens, float
         if (llama_decode(g_ctx, next) != 0) break;
     }
     llama_sampler_free(sampler);
-    if (output.empty()) return "Local model generated no text. Try a smaller GGUF model or a shorter prompt.";
+    if (output.empty()) return "__YAALI_ERROR__Local model generated no text. Try a smaller GGUF model or a shorter prompt.";
     return output;
 }
 }
@@ -135,13 +139,19 @@ Java_com_yaali_assistant_plugins_LocalAIPlugin_nativeGenerate(JNIEnv *env, jclas
         std::string out = generate_locked(jstr(env, prompt), std::max(64, std::min(1024, (int)maxTokens)), temperature);
         return env->NewStringUTF(out.c_str());
     } catch (...) {
-        return env->NewStringUTF("Local inference crashed or ran out of memory");
+        return env->NewStringUTF("__YAALI_ERROR__Local inference crashed or ran out of memory");
     }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_yaali_assistant_plugins_LocalAIPlugin_nativeCancelGeneration(JNIEnv *, jclass) {
+    g_cancel.store(true);
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_yaali_assistant_plugins_LocalAIPlugin_nativeUnloadModel(JNIEnv *, jclass) {
     std::lock_guard<std::mutex> lock(g_mutex);
+    g_cancel.store(true);
     unload_locked();
 }
 

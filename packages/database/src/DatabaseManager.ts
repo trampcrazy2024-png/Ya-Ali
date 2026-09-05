@@ -14,7 +14,7 @@ export class DatabaseManager implements DatabaseExecutor {
   private connection: SQLiteDBConnection | null = null;
 
   private readonly databaseName = 'yaali.db';
-  private readonly version = 2;
+  private readonly version = 4;
 
   async initialize(): Promise<void> {
     if (this.connection) {

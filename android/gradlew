@@ -93,11 +93,11 @@ WRAPPER_JAR="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
 if [ ! -f "$WRAPPER_JAR" ]; then
   mkdir -p "$(dirname "$WRAPPER_JAR")"
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL --retry 3 -o "$WRAPPER_JAR" "https://raw.githubusercontent.com/gradle/gradle/v8.11.1/gradle/wrapper/gradle-wrapper.jar" || rm -f "$WRAPPER_JAR"
+    curl -fsSL --retry 3 -o "$WRAPPER_JAR" "https://raw.githubusercontent.com/gradle/gradle/v8.13/gradle/wrapper/gradle-wrapper.jar" || rm -f "$WRAPPER_JAR"
   fi
 fi
 if [ ! -f "$WRAPPER_JAR" ]; then
-  echo "ERROR: gradle-wrapper.jar is missing; install Gradle 8.11.1 or allow curl to fetch it." >&2
+  echo "ERROR: gradle-wrapper.jar is missing; install Gradle 8.13 or allow curl to fetch it." >&2
   exit 1
 fi
 

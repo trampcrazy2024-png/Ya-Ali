@@ -1,7 +1,7 @@
 {
   "name": "ya-ali",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.1",
   "type": "module",
   "engines": {
     "node": ">=20.0.0"
@@ -12,7 +12,9 @@
     "typecheck": "npm --workspace apps/mobile run typecheck",
     "test": "npm --workspace apps/mobile run test",
     "android:sync": "npm run build && npx cap sync android",
-    "android:build": "npm run android:sync && cd android && ./gradlew assembleDebug"
+    "android:build": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "doctor": "bash scripts/doctor.sh",
+    "model:detect": "bash scripts/model-tools/detect-model.sh"
   },
   "workspaces": [
     "apps/*",

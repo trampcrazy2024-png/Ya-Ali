@@ -1,15 +1,14 @@
 package com.yaali.assistant.plugins;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
-import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 
+import androidx.activity.result.ActivityResult;
 import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.JSArray;
@@ -17,145 +16,147 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.util.ArrayList;
 
-@CapacitorPlugin(name="NativeSTT")
+/**
+ * Stable Android STT bridge.
+ *
+ * The previous implementation used SpeechRecognizer directly. Some OEM
+ * recognition services can crash or misbehave inside the host process even
+ * when the API reports that they are available. For a production app the
+ * safer path is Android's recognition activity: the speech service runs in
+ * its own system/provider process and returns a normal ActivityResult.
+ * EXTRA_PREFER_OFFLINE remains enabled so a device with an offline language
+ * pack can use it, without forcing an unavailable offline engine.
+ */
+@CapacitorPlugin(name = "NativeSTT")
 public class NativeSTTPlugin extends Plugin {
-    private SpeechRecognizer recognizer;
     private PluginCall pendingCall;
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private Runnable timeoutTask;
+    private String pendingLanguage = "fa-IR";
+    private boolean cancelled = false;
 
     @PluginMethod
     public void listen(PluginCall call) {
-        if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            call.reject("RECORD_AUDIO permission is required");
-            return;
-        }
-        if (!SpeechRecognizer.isRecognitionAvailable(getContext())) {
-            call.reject("No Android speech recognition service is installed or enabled");
+        if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            call.reject("مجوز میکروفن داده نشده است. در تنظیمات Android دسترسی Microphone را فعال کنید.");
             return;
         }
         if (pendingCall != null) {
-            call.reject("Speech recognizer is already listening");
+            call.reject("تشخیص گفتار دیگری در حال اجراست.");
             return;
         }
 
-        final String lang = call.getString("lang", "fa-IR");
-        pendingCall = call;
-        ensureRecognizer();
+        boolean available;
+        try {
+            available = SpeechRecognizer.isRecognitionAvailable(getContext());
+        } catch (Throwable ignored) {
+            available = false;
+        }
+        if (!available) {
+            call.reject("هیچ سرویس تشخیص گفتار Android روی این دستگاه در دسترس نیست. Google Speech یا سرویس گفتار سیستم را فعال کنید.");
+            return;
+        }
 
+        pendingCall = call;
+        cancelled = false;
+        pendingLanguage = call.getString("lang", "fa-IR");
+        try {
+            Intent intent = buildIntent(pendingLanguage);
+            startActivityForResult(call, intent, "speechResult");
+        } catch (Throwable e) {
+            pendingCall = null;
+            call.reject("اجرای صفحه تشخیص گفتار Android ناموفق بود: " + safeMessage(e));
+        }
+    }
+
+    private Intent buildIntent(String lang) {
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang);
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
         intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
         intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "یا علی — صحبت کنید");
-
-        try {
-            recognizer.startListening(intent);
-            timeoutTask = () -> finishError("Speech recognition timed out; please try again");
-            mainHandler.postDelayed(timeoutTask, 30000L);
-        } catch (Exception e) {
-            finishError("Cannot start speech recognition: " + e.getMessage());
-        }
+        // This is a preference, not a hard requirement. The installed speech
+        // service may fall back to its normal mode if no offline pack exists.
+        intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
+        return intent;
     }
 
-    private void ensureRecognizer() {
-        if (recognizer != null) return;
-        boolean useOnDevice = Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(getContext());
-        try {
-            recognizer = useOnDevice
-                ? SpeechRecognizer.createOnDeviceSpeechRecognizer(getContext())
-                : SpeechRecognizer.createSpeechRecognizer(getContext());
-        } catch (Exception e) {
-            recognizer = SpeechRecognizer.createSpeechRecognizer(getContext());
+    @ActivityCallback
+    private void speechResult(PluginCall call, ActivityResult result) {
+        if (pendingCall == call) pendingCall = null;
+        if (call == null || cancelled) return;
+
+        if (result == null || result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
+            call.reject("تشخیص گفتار لغو شد یا سرویس گفتار نتیجه‌ای برنگرداند.");
+            return;
         }
-        recognizer.setRecognitionListener(new RecognitionListener() {
-            @Override public void onReadyForSpeech(android.os.Bundle params) {}
-            @Override public void onBeginningOfSpeech() {}
-            @Override public void onRmsChanged(float rmsdB) {}
-            @Override public void onBufferReceived(byte[] buffer) {}
-            @Override public void onEndOfSpeech() {}
-            @Override public void onPartialResults(android.os.Bundle partialResults) {}
-            @Override public void onEvent(int eventType, android.os.Bundle params) {}
-            @Override public void onError(int error) { finishError(errorMessage(error)); }
-            @Override public void onResults(android.os.Bundle results) {
-                ArrayList<String> values = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                if (values == null || values.isEmpty() || values.get(0) == null || values.get(0).trim().isEmpty()) {
-                    finishError("No speech recognized");
-                    return;
-                }
-                clearPendingTimer();
-                PluginCall call = pendingCall;
-                pendingCall = null;
-                JSObject out = new JSObject();
-                out.put("text", values.get(0).trim());
-                JSArray alternatives = new JSArray();
-                for (String value : values) alternatives.put(value);
-                out.put("alternatives", alternatives);
-                call.resolve(out);
-            }
-        });
+
+        ArrayList<String> values = result.getData().getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+        if (values == null || values.isEmpty() || values.get(0) == null || values.get(0).trim().isEmpty()) {
+            call.reject("هیچ گفتاری تشخیص داده نشد.");
+            return;
+        }
+
+        JSObject out = new JSObject();
+        out.put("text", values.get(0).trim());
+        out.put("mode", "system-activity");
+        out.put("language", pendingLanguage);
+        JSArray alternatives = new JSArray();
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) alternatives.put(value.trim());
+        }
+        out.put("alternatives", alternatives);
+        call.resolve(out);
     }
 
-    private String errorMessage(int error) {
-        switch (error) {
-            case SpeechRecognizer.ERROR_AUDIO: return "Microphone/audio recording error";
-            case SpeechRecognizer.ERROR_CLIENT: return "Speech recognizer client error";
-            case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS: return "Microphone permission was denied";
-            case SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED: return "Selected speech language is not supported";
-            case SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE: return "Selected speech language is not installed on the device";
-            case SpeechRecognizer.ERROR_NETWORK: return "Speech service needs network access and the network request failed";
-            case SpeechRecognizer.ERROR_NETWORK_TIMEOUT: return "Speech service network timeout";
-            case SpeechRecognizer.ERROR_NO_MATCH: return "No speech was recognized";
-            case SpeechRecognizer.ERROR_RECOGNIZER_BUSY: return "Speech recognizer is busy";
-            case SpeechRecognizer.ERROR_SERVER: return "Speech recognition server error";
-            case SpeechRecognizer.ERROR_SERVER_DISCONNECTED: return "Speech recognition service disconnected";
-            case SpeechRecognizer.ERROR_SPEECH_TIMEOUT: return "No speech was detected before timeout";
-            default: return "Speech recognition failed (error " + error + ")";
-        }
-    }
-
-    private void finishError(String message) {
-        clearPendingTimer();
-        if (recognizer != null) {
-            try { recognizer.cancel(); } catch (Exception ignored) {}
-        }
-        PluginCall call = pendingCall;
+    @PluginMethod
+    public void stop(PluginCall call) {
+        // The system recognition activity owns its own lifecycle. Finishing
+        // it through an arbitrary Activity reference is OEM-dependent and can
+        // reintroduce the crash this plugin is designed to prevent. The UI can
+        // simply await the activity result; a cancelled result is handled above.
+        PluginCall pending = pendingCall;
+        cancelled = true;
         pendingCall = null;
-        if (call != null) call.reject(message);
-    }
-
-    private void clearPendingTimer() {
-        if (timeoutTask != null) {
-            mainHandler.removeCallbacks(timeoutTask);
-            timeoutTask = null;
-        }
+        if (pending != null) pending.reject("تشخیص گفتار متوقف شد.");
+        call.resolve();
     }
 
     @PluginMethod
     public void isAvailable(PluginCall call) {
+        boolean service = false;
+        boolean onDevice = false;
+        try { service = SpeechRecognizer.isRecognitionAvailable(getContext()); } catch (Throwable ignored) {}
+        try {
+            onDevice = Build.VERSION.SDK_INT >= 31
+                    && SpeechRecognizer.isOnDeviceRecognitionAvailable(getContext());
+        } catch (Throwable ignored) {}
         JSObject out = new JSObject();
-        boolean service = SpeechRecognizer.isRecognitionAvailable(getContext());
-        boolean onDevice = Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(getContext());
-        out.put("available", service);
+        out.put("available", service || onDevice);
+        out.put("serviceAvailable", service);
         out.put("onDeviceAvailable", onDevice);
+        out.put("api", Build.VERSION.SDK_INT);
         call.resolve(out);
     }
 
     @Override
     protected void handleOnDestroy() {
-        clearPendingTimer();
-        if (recognizer != null) {
-            try { recognizer.cancel(); } catch (Exception ignored) {}
-            recognizer.destroy();
-            recognizer = null;
-        }
+        PluginCall pending = pendingCall;
+        cancelled = true;
         pendingCall = null;
+        if (pending != null) pending.reject("تشخیص گفتار متوقف شد.");
         super.handleOnDestroy();
+    }
+
+    private String safeMessage(Throwable e) {
+        String message = e == null ? null : e.getMessage();
+        return message == null || message.isEmpty() ? e.getClass().getSimpleName() : message;
     }
 }

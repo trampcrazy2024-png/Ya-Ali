@@ -1,5 +1,6 @@
 import { getDatabaseManager } from '../languageBank';
 import type { EndpointProfile } from './endpointProfiles';
+import type { EndpointCapability, EndpointProtocol } from './endpointMatrix';
 
 export async function persistEndpointProfile(profile:EndpointProfile):Promise<void>{
   try{
@@ -20,7 +21,7 @@ export async function loadEndpointProfilesFromSQLite():Promise<EndpointProfile[]
     const result=await db.query('SELECT id,name,base_url,model,enabled,priority,protocols_json,capabilities_json,latency_ms,last_probe,failures,last_success,last_failure FROM endpoint_profiles ORDER BY priority DESC');
     return (result.values||[]).map((row:any)=>({
       id:String(row.id),name:String(row.name),baseUrl:String(row.base_url),
-      enabled:Number(row.enabled)!==0,priority:Number(row.priority||50),protocols:jsonArray(row.protocols_json),capabilities:jsonArray(row.capabilities_json),
+      enabled:Number(row.enabled)!==0,priority:Number(row.priority||50),protocols:jsonArray<EndpointProtocol>(row.protocols_json),capabilities:jsonArray<EndpointCapability>(row.capabilities_json),
       latencyMs:Number(row.latency_ms||99999),failures:Number(row.failures||0),
       ...(row.model!=null && row.model!=='' ? {model:String(row.model)} : {}),
       ...(row.last_probe!=null ? {lastProbe:Number(row.last_probe)} : {}),
@@ -29,4 +30,4 @@ export async function loadEndpointProfilesFromSQLite():Promise<EndpointProfile[]
     }));
   }catch{return []}
 }
-function jsonArray(value:unknown):string[]{try{const x=JSON.parse(String(value||'[]'));return Array.isArray(x)?x.map(String):[]}catch{return []}}
+function jsonArray<T extends string>(value:unknown):T[]{try{const x=JSON.parse(String(value||'[]'));return Array.isArray(x)?(x.map(String) as T[]):[]}catch{return []}}

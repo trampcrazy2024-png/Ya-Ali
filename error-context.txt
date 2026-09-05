@@ -1,0 +1,37 @@
+--- PRESET CONTEXT ---
+  3458	                  'llama.cpp',
+  3459	                ],
+  3460	                [
+  3461	                  'localai',
+  3462	                  'LocalAI',
+  3463	                ],
+  3464	                [
+  3465	                  'vllm',
+  3466	                  'vLLM',
+  3467	                ],
+  3468	                [
+  3469	                  'mlc',
+  3470	                  'MLC',
+  3471	                ],
+  3472	              ].map(
+  3473	                ([preset, label]) => (
+  3474	                  <button
+  3475	                    key={preset}
+  3476	                    onClick={() => {
+  3477	                      const value =
+  3478	                        endpointPreset(
+  3479	                          preset,
+  3480	                        );
+  3481	
+  3482	                      setCustomEndpointState(
+  3483	                        value,
+  3484	                      );
+  3485	
+  3486	                      setCustomEndpoint(
+  3487	                        value,
+  3488	                      );
+  3489	                    }}
+  3490	                  >
+  3491	                    {label}
+  3492	                  </button>
+--- CONVERSATION CONTEXT ---

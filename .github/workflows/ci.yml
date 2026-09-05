@@ -31,14 +31,30 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: android-actions/setup-android@v3
-      - run: yes | sdkmanager --licenses >/dev/null || true
-      - run: sdkmanager 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
-      - run: npm ci
-      - run: npm run android:sync
+      - name: Install Android SDK components
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358" "cmake;3.22.1"
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Web build
+        run: npm run build
+      - name: Verify Capacitor web assets
+        run: test -f apps/mobile/dist/index.html
+      - name: Capacitor sync
+        run: npx cap sync android
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.11.1'
-      - run: cd android && gradle --no-daemon assembleDebug
+          gradle-version: '8.13'
+      - name: Android debug build
+        working-directory: android
+        run: gradle --no-daemon :app:clean :app:assembleDebug --max-workers=2 -Dorg.gradle.jvmargs=-Xmx4096m
+      - name: Verify APK artifact
+        run: |
+          test -f android/app/build/outputs/apk/debug/app-debug.apk
+          sha256sum android/app/build/outputs/apk/debug/app-debug.apk
       - uses: actions/upload-artifact@v4
         with:
           name: ya-ali-debug-apk

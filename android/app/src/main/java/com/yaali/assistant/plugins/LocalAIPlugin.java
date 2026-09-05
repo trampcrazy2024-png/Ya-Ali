@@ -30,7 +30,7 @@ public class LocalAIPlugin extends Plugin {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private File loadedModel;
     private boolean engineReady = false;
-    private boolean generating = false;
+    private volatile boolean generating = false;
     private String engineError = "";
 
     static {
@@ -43,6 +43,7 @@ public class LocalAIPlugin extends Plugin {
 
     private static native String nativeLoadModel(String path, int context, int threads);
     private static native String nativeGenerate(String prompt, int maxTokens, float temperature);
+    private static native void nativeCancelGeneration();
     private static native void nativeUnloadModel();
     private static native String nativeStatus();
 
@@ -69,6 +70,7 @@ public class LocalAIPlugin extends Plugin {
             r.put("path", dest.getAbsolutePath());
             r.put("name", dest.getName());
             r.put("sizeBytes", dest.length());
+            r.put("format", detectFormat(dest.getName()));
             r.put("imported", true);
             r.put("engineReady", false);
             call.resolve(r);
@@ -78,7 +80,7 @@ public class LocalAIPlugin extends Plugin {
     }
 
     private File copyUri(Uri uri) throws Exception {
-        String name = "model.gguf";
+        String name = "model.bin";
         Cursor c = getContext().getContentResolver().query(uri, null, null, null, null);
         if (c != null) {
             try {
@@ -86,7 +88,8 @@ public class LocalAIPlugin extends Plugin {
                 if (i >= 0 && c.moveToFirst() && c.getString(i) != null) name = c.getString(i);
             } finally { c.close(); }
         }
-        if (!name.toLowerCase().endsWith(".gguf")) throw new IOException("Only GGUF models are supported for on-device inference");
+        String lower = name.toLowerCase();
+        if (!(lower.endsWith(".gguf") || lower.endsWith(".onnx") || lower.endsWith(".pte") || lower.endsWith(".safetensors") || lower.endsWith(".bin") || lower.endsWith(".pt") || lower.endsWith(".pth") || lower.endsWith(".tflite"))) throw new IOException("Unsupported model file format");
         File dir = new File(getContext().getFilesDir(), MODEL_DIR);
         if (!dir.exists() && !dir.mkdirs()) throw new IOException("cannot create models directory");
         File dest = new File(dir, name);
@@ -101,11 +104,33 @@ public class LocalAIPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void pickTokenizer(PluginCall call) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        startActivityForResult(call, intent, "tokenizerPicked");
+    }
+
+    @ActivityCallback
+    private void tokenizerPicked(PluginCall call, ActivityResult result) {
+        if (result == null || result.getResultCode() != Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) { call.reject("Tokenizer selection cancelled"); return; }
+        try { File dest = copyNonModelUri(result.getData().getData(), "tokenizer"); JSObject r = new JSObject(); r.put("path", dest.getAbsolutePath()); r.put("name", dest.getName()); r.put("sizeBytes", dest.length()); call.resolve(r); }
+        catch (Exception e) { call.reject("Cannot import tokenizer: " + e.getMessage()); }
+    }
+
+    private File copyNonModelUri(Uri uri, String prefix) throws Exception {
+        String name = prefix + ".model"; Cursor c = getContext().getContentResolver().query(uri, null, null, null, null);
+        if (c != null) { try { int i=c.getColumnIndex(OpenableColumns.DISPLAY_NAME); if(i>=0&&c.moveToFirst()&&c.getString(i)!=null) name=c.getString(i); } finally { c.close(); } }
+        File dir=new File(getContext().getFilesDir(),MODEL_DIR); if(!dir.exists()&&!dir.mkdirs())throw new IOException("cannot create models directory"); File dest=new File(dir,name);
+        try(InputStream in=getContext().getContentResolver().openInputStream(uri);FileOutputStream out=new FileOutputStream(dest)){if(in==null)throw new IOException("cannot open tokenizer");byte[] b=new byte[1024*1024];int n;while((n=in.read(b))!=-1)out.write(b,0,n);} return dest;
+    }
+
+    @PluginMethod
     public void listModels(PluginCall call) {
         File dir = new File(getContext().getFilesDir(), MODEL_DIR);
         JSArray arr = new JSArray();
         if (dir.isDirectory()) {
-            File[] files = dir.listFiles((d, n) -> n != null && n.toLowerCase().endsWith(".gguf"));
+            File[] files = dir.listFiles((d, n) -> n != null && isSupportedModelName(n));
             if (files != null) {
                 java.util.Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
                 for (File f : files) {
@@ -113,6 +138,7 @@ public class LocalAIPlugin extends Plugin {
                     item.put("path", f.getAbsolutePath());
                     item.put("name", f.getName());
                     item.put("sizeBytes", f.length());
+                    item.put("format", detectFormat(f.getName()));
                     item.put("loaded", loadedModel != null && f.equals(loadedModel) && engineReady);
                     arr.put(item);
                 }
@@ -150,7 +176,7 @@ public class LocalAIPlugin extends Plugin {
         if (path.isEmpty()) { call.reject("path is required"); return; }
         File f = new File(path);
         if (!f.exists() || !f.isFile()) { call.reject("Model not found: " + path); return; }
-        if (!f.getName().toLowerCase().endsWith(".gguf")) { call.reject("Only GGUF models are supported"); return; }
+        if (!f.getName().toLowerCase().endsWith(".gguf")) { call.reject("فرمت وارد شد ولی موتور مستقیم Android این نسخه فقط GGUF/llama.cpp را اجرا می‌کند؛ برای ONNX/PTE از Runtime اختصاصی استفاده کنید."); return; }
 
         executor.execute(() -> {
             try {
@@ -183,6 +209,15 @@ public class LocalAIPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void cancelGeneration(PluginCall call) {
+        try { nativeCancelGeneration(); } catch (Throwable ignored) {}
+        generating = false;
+        JSObject out = new JSObject();
+        out.put("cancelled", true);
+        call.resolve(out);
+    }
+
+    @PluginMethod
     public void status(PluginCall call) {
         JSObject r = modelStatusObject();
         try {
@@ -208,6 +243,8 @@ public class LocalAIPlugin extends Plugin {
         executor.execute(() -> {
             try {
                 String text = nativeGenerate(prompt, maxTokens, (float) temperature);
+                if (text != null && text.startsWith("__YAALI_CANCELLED__")) { call.reject("تولید پاسخ توسط کاربر متوقف شد."); return; }
+                if (text != null && text.startsWith("__YAALI_ERROR__")) { call.reject(text.substring("__YAALI_ERROR__".length())); return; }
                 if (text == null || text.trim().isEmpty()) { call.reject("Local model returned an empty response"); return; }
                 JSObject out = new JSObject();
                 out.put("text", text.trim());
@@ -235,6 +272,22 @@ public class LocalAIPlugin extends Plugin {
         }
         p.append("assistant:\n");
         return p.toString();
+    }
+
+    private static boolean isSupportedModelName(String name) {
+        String n = name.toLowerCase();
+        return n.endsWith(".gguf") || n.endsWith(".onnx") || n.endsWith(".pte") || n.endsWith(".safetensors") || n.endsWith(".bin") || n.endsWith(".pt") || n.endsWith(".pth") || n.endsWith(".tflite");
+    }
+
+    private static String detectFormat(String name) {
+        String n = name.toLowerCase();
+        if (n.endsWith(".gguf")) return "gguf";
+        if (n.endsWith(".onnx")) return "onnx";
+        if (n.endsWith(".pte")) return "pte";
+        if (n.endsWith(".safetensors")) return "safetensors";
+        if (n.endsWith(".tflite")) return "tflite";
+        if (n.endsWith(".bin") || n.endsWith(".pt") || n.endsWith(".pth")) return "pytorch";
+        return "unknown";
     }
 
     private JSObject modelStatusObject() {
