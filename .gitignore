@@ -30,3 +30,7 @@ android/app/.cxx/
 android/app/build/
 android/.gradle/
 .cxx/
+
+# Local recovery checkpoints — keep locally, never commit
+checkpoints/*.tar.gz
+checkpoints/*.bundle

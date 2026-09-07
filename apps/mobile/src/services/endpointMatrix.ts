@@ -31,8 +31,7 @@ export async function probeEndpoint(input:string):Promise<EndpointProbe>{
   const hasOpenAI=protocols.has('openai-v1')||protocols.has('llamacpp')||protocols.has('localai')||protocols.has('vllm')||protocols.has('mlc');
   let chatPath:string|undefined;if(endpoints.includes('/api/v1/chat'))chatPath='/api/v1/chat';else if(hasOpenAI)chatPath='/v1/chat/completions';else if(endpoints.includes('/api/generate'))chatPath='/api/generate';else if(endpoints.includes('/api/tags'))chatPath='/api/chat';else if(endpoints.includes('/completion'))chatPath='/completion';
   if(chatPath)capabilities.add('chat');
-  const unique=[...new Set(models)];const latencyMs=Math.round(performance.now()-start);
-  return {baseUrl:base,ok:endpoints.length>0,latencyMs,protocols:[...protocols],capabilities:[...capabilities],models:unique,endpoints,message:endpoints.length?`Endpoint شناسایی شد · ${unique.length} مدل · ${latencyMs}ms`:'هیچ API شناخته‌شده‌ای پاسخ نداد.',...(chatPath?{chatPath}:{})};
+  const unique=[...new Set(models)];const latencyMs=Math.round(performance.now()-start);return {baseUrl:base,ok:endpoints.length>0,latencyMs,protocols:[...protocols],capabilities:[...capabilities],models:unique,endpoints,message:endpoints.length?`Endpoint شناسایی شد · ${unique.length} مدل · ${latencyMs}ms`:'هیچ API شناخته‌شده‌ای پاسخ نداد.',...(chatPath ? {chatPath} : {})};
 }
 export function endpointPreset(id:'ollama'|'lmstudio'|'llamacpp'|'localai'|'vllm'|'mlc'){const p={ollama:'http://192.168.1.10:11434',lmstudio:'http://192.168.1.10:1234',llamacpp:'http://192.168.1.10:8080',localai:'http://192.168.1.10:8080',vllm:'http://192.168.1.10:8000',mlc:'http://192.168.1.10:8000'};return p[id]}
 export const ENDPOINT_CATALOG=[

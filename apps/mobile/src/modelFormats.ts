@@ -1,4 +1,4 @@
-export type LocalModelFormat = 'gguf' | 'onnx' | 'pte' | 'litertlm' | 'safetensors' | 'pytorch' | 'tflite' | 'unknown';
+export type LocalModelFormat = 'gguf' | 'onnx' | 'onnx-bundle' | 'pte' | 'litertlm' | 'safetensors' | 'pytorch' | 'tflite' | 'unknown';
 export type LocalModelExecution = 'llama.cpp' | 'onnxruntime-genai' | 'executorch' | 'litert-lm' | 'endpoint' | 'unsupported';
 
 export interface ModelFormatInfo {
@@ -12,6 +12,7 @@ export interface ModelFormatInfo {
 const FORMATS: ModelFormatInfo[] = [
   { format: 'gguf', execution: 'llama.cpp', labelFa: 'GGUF / llama.cpp', directOnDevice: true, extensions: ['.gguf'] },
   { format: 'onnx', execution: 'onnxruntime-genai', labelFa: 'ONNX / ONNX Runtime GenAI', directOnDevice: true, extensions: ['.onnx'] },
+  { format: 'onnx-bundle', execution: 'onnxruntime-genai', labelFa: 'ONNX GenAI Bundle / ZIP', directOnDevice: true, extensions: ['.zip'] },
   { format: 'pte', execution: 'executorch', labelFa: 'ExecuTorch PTE', directOnDevice: true, extensions: ['.pte'] },
   { format: 'litertlm', execution: 'litert-lm', labelFa: 'LiteRT-LM', directOnDevice: true, extensions: ['.litertlm'] },
   { format: 'safetensors', execution: 'endpoint', labelFa: 'Safetensors / Hugging Face', directOnDevice: false, extensions: ['.safetensors'] },

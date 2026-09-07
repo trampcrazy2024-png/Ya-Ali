@@ -14,7 +14,7 @@ export class DatabaseManager implements DatabaseExecutor {
   private connection: SQLiteDBConnection | null = null;
 
   private readonly databaseName = 'yaali.db';
-  private readonly version = 4;
+  private readonly version = 9;
 
   async initialize(): Promise<void> {
     if (this.connection) {
@@ -29,7 +29,9 @@ export class DatabaseManager implements DatabaseExecutor {
       false
     );
 
-    await this.connection.open();
+    const connection = this.connection;
+    if (!connection) throw new Error('Database connection could not be created');
+    await connection.open();
   }
 
   private getConnection(): SQLiteDBConnection {

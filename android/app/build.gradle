@@ -1,6 +1,17 @@
 apply plugin: 'com.android.application'
 
 android {
+    packagingOptions {
+        pickFirst '**/libonnxruntime.so'
+    }
+
+    packaging {
+        resources {
+            excludes += [
+                "META-INF/LICENSE-1DS"
+            ]
+        }
+    }
     namespace "com.yaali.assistant"
     compileSdk rootProject.ext.compileSdkVersion
     // Pinned explicitly (rather than left to the Android Gradle Plugin's
@@ -11,8 +22,8 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         ndkVersion "28.2.13676358"
-        versionCode 9
-        versionName "1.0.1"
+        versionCode 12
+        versionName "1.0.5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
@@ -26,14 +37,6 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    packaging {
-        resources {
-            excludes += [
-                "META-INF/LICENSE-1DS"
-            ]
-        }
-    }
-
     buildTypes {
         release {
             minifyEnabled false
@@ -55,6 +58,7 @@ repositories {
 }
 
 dependencies {
+    implementation files("libs/sherpa-onnx-1.13.7.aar")
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
@@ -68,6 +72,7 @@ dependencies {
     implementation "org.pytorch:executorch-android:1.4.0"
     implementation "com.microsoft.onnxruntime:onnxruntime-android:1.29.0"
     implementation "com.google.ai.edge.litertlm:litertlm-android:0.16.1"
+    // Offline speech core: Sherpa-ONNX provides Android ASR/TTS runtimes and model APIs.
     def onnxGenAiAar = file("libs/onnxruntime-genai-android-0.15.2.aar")
     if (onnxGenAiAar.exists()) { implementation files(onnxGenAiAar) } else { logger.lifecycle("YaAli: optional ONNX Runtime GenAI Android AAR not present; generic ONNX runtime remains enabled.") }
 }

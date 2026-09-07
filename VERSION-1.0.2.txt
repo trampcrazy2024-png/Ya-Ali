@@ -1,0 +1,15 @@
+Ya-Ali 1.0.2
+Base checkpoint: 482c99ed7bcaf552b3cb6b0d59d9634dc84fe86d
+Android versionCode: 10
+Source package: replacement source only; do not copy node_modules or build outputs.
+
+Implemented:
+- Dynamic 100dvh/100svh + safe-area mobile layout.
+- Android STT activity -> direct SpeechRecognizer fallback, main-thread lifecycle, timeout and error mapping.
+- Expanded language/dialect bank filtering.
+- Adaptive learning: skill vector, CEFR, six modalities, time-budget planning.
+- Voice pack custom source UI, 512MB cap and SHA-256 metadata.
+- Architecture/learning documentation.
+
+Verification limitation:
+This package was statically checked here. A fresh npm/Android build must be executed in Codespace because this environment has no network access to install the repository dependencies and cannot truthfully claim a fresh APK build.

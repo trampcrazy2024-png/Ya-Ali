@@ -1,7 +1,7 @@
 {
   "name": "ya-ali",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.1.0-rc.1",
   "type": "module",
   "engines": {
     "node": ">=20.0.0"
@@ -9,7 +9,10 @@
   "scripts": {
     "dev": "npm --workspace apps/mobile run dev",
     "build": "npm --workspace apps/mobile run build",
-    "typecheck": "npm --workspace apps/mobile run typecheck",
+    "typecheck": "npm run typecheck:shared && npm run typecheck:core && npm run typecheck:database && npm --workspace apps/mobile run typecheck",
+    "typecheck:shared": "tsc --noEmit -p packages/shared/tsconfig.json",
+    "typecheck:core": "tsc --noEmit -p packages/core/tsconfig.json",
+    "typecheck:database": "tsc --noEmit -p packages/database/tsconfig.json",
     "test": "npm --workspace apps/mobile run test",
     "android:sync": "npm run build && npx cap sync android",
     "android:build": "npm run android:sync && cd android && ./gradlew assembleDebug",
@@ -26,7 +29,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^7.0.0",
-    "@types/node": "^22.10.0",
+    "@types/node": "26.2.0",
     "typescript": "^5.7.0",
     "vite": "^7.0.0"
   }
