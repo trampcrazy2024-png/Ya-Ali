@@ -35,3 +35,21 @@ android/.gradle/
 checkpoints/*.tar.gz
 checkpoints/*.bundle
 backups/*.zip
+
+# Local/generated release artifacts
+*.apk
+*.aab
+*.zip
+*.tar.gz
+*.bundle
+
+# Local checkpoints
+checkpoints/
+
+# Temporary/editor backups
+*.bak
+*.tmp
+
+# Local project exports
+project-export/
+
