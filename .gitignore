@@ -34,3 +34,4 @@ android/.gradle/
 # Local recovery checkpoints — keep locally, never commit
 checkpoints/*.tar.gz
 checkpoints/*.bundle
+backups/*.zip
