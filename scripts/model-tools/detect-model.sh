@@ -10,5 +10,6 @@ case "$name" in
   *.safetensors) echo "format=safetensors runtime=conversion-or-endpoint direct_android=no" ;;
   *.bin|*.pt|*.pth) echo "format=pytorch runtime=conversion-or-endpoint direct_android=no" ;;
   *.tflite) echo "format=tflite runtime=litert task-dependent" ;;
+  *.zip) echo "format=onnx-bundle runtime=onnxruntime-genai direct_android=yes* (bundle must contain ONNX GenAI model files)" ;;
   *) echo "format=unknown" ;;
 esac

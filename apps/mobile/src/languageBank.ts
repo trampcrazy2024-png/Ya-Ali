@@ -1,8 +1,10 @@
 import { Capacitor } from '@capacitor/core';
-import { DatabaseManager, MigrationRunner, migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, VocabularyRepository } from '@yaali/database';
+import { DatabaseManager, MigrationRunner, migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice, VocabularyRepository, ScenarioRepository } from '@yaali/database';
 import type { LanguageBankItem } from '@yaali/database';
 import { PHRASES } from './data';
 import { SEED_WORDS } from './vocabularySeed';
+import { buildScenarioBankSeeds } from './scenarioBankSeed';
+import { EVERYDAY_SENTENCES } from './everydaySentenceBank';
 
 
 const MIRROR_KEY = 'yaali_language_bank_v4';
@@ -40,7 +42,7 @@ export function phraseToBankItem(p: any): LanguageBankItem {
     ...(String(p.gender || '').includes('listener') ? {listener_gender: p.gender} : {}),
     example_text: p.example || p.arabic || p.text || '',
     example_translation: p.exampleFa || p.farsi || '',
-    source: 'built-in Persian language bank',
+    source: p.source || 'built-in Persian language bank',
     favorite: 0, learned: 0, notes: p.audioTips || '',
     created_at: ts, updated_at: ts
   };
@@ -66,19 +68,31 @@ function writeMirror(items: LanguageBankItem[]) {
 
 export async function initLanguageBank(): Promise<void> {
   if (ready) return;
-  const supported = PHRASES.filter((p:any)=>{ const d=String(p.dialect||''); return d.includes('عراقی') || d.includes('لبنانی') || d.includes('آمریکایی'); });
+  const supportedDialects = ['عراقی','لبنانی','شامی','خلیجی','سعودی','مصری','فلسطینی','اردنی','آمریکایی','فصیح','عربی معیار'];
+  const supported = PHRASES.filter((p:any)=>{ const d=String(p.dialect||''); return supportedDialects.some(x=>d.includes(x)) || /iraqi|lebanese|levantine|gulf|saudi|egyptian|american|msa|fusha/i.test(d); });
   const seeds = supported.map(phraseToBankItem);
+  const scenarioSeeds: LanguageBankItem[] = buildScenarioBankSeeds().map((x:any) => phraseToBankItem(x));
+  const everydaySentenceSeeds: LanguageBankItem[] = EVERYDAY_SENTENCES.map((x) => phraseToBankItem({ id: x.id, kind: 'example', lang: x.lang, dialect: x.dialect, text: x.text, translation: x.translation, farsi: x.translation, arabic: x.lang === 'arabic' ? x.text : '', english: x.lang === 'english' ? x.text : '', arabicPhoneticLatin: x.transliteration || '', category: x.category, level: x.level, example: x.text, exampleFa: x.translation, source: 'Ya-Ali curated everyday sentence bank' }));
   const wordSeeds: LanguageBankItem[] = SEED_WORDS.map(w => phraseToBankItem({id:w.id, kind:'word', lang:w.lang, dialect:w.dialect, text:w.text, translation:w.translation, farsi:w.translation, english:w.lang==='english'?w.text:'', arabic:w.lang==='arabic'?w.text:'', arabicPhoneticLatin:w.transliteration, arabicPhonetic:w.pronunciation, category:w.category, example:w.example, exampleFa:w.exampleFa, level:w.level, audioTips:`${w.level} · ${w.category}`}));
   const existing = [...readLegacy(), ...readMirror()];
   const map = new Map(existing.map(x => [x.id,x]));
-  for (const s of [...seeds, ...wordSeeds]) map.set(s.id,s);
+  for (const s of [...seeds, ...wordSeeds, ...scenarioSeeds, ...everydaySentenceSeeds]) map.set(s.id,s);
   writeMirror([...map.values()].slice(0, 30000));
   if (Capacitor.isNativePlatform()) {
     try {
       await db.initialize();
-      await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS]);
+      await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice]);
       const repo = new VocabularyRepository(db);
-      for (const item of [...seeds, ...wordSeeds]) await repo.upsertLanguageItem(item);
+      for (const item of [...seeds, ...wordSeeds, ...scenarioSeeds, ...everydaySentenceSeeds]) await repo.upsertLanguageItem(item);
+      const scenarioRepo = new ScenarioRepository(db);
+      for (const scenario of (await import('./services/scenarioLibrary')).SCENARIOS) {
+        await scenarioRepo.upsert({
+          id: scenario.id, version: 1, title: scenario.titleEn, level: scenario.level, dialects: scenario.dialects,
+          context: scenario.context, learnerRole: scenario.roles[0]?.titleEn || 'Learner', partnerRole: scenario.roles[1]?.titleEn || 'Partner',
+          persona: scenario.roles[1]?.perspective || 'Natural conversation partner', goals: [scenario.objective], constraints: scenario.constraints,
+          successCriteria: [scenario.objective], states: ['opening','active','success','completed'], transitions: [], hints: [], skills: scenario.tags, tags: scenario.tags
+        });
+      }
     } catch (e) {
       console.warn('[language-bank] SQLite unavailable; local mirror remains active', e);
     }
@@ -88,7 +102,7 @@ export async function initLanguageBank(): Promise<void> {
 
 export async function getDatabaseManager(): Promise<DatabaseManager> {
   await db.initialize();
-  await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS]);
+  await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice]);
   return db;
 }
 
@@ -113,7 +127,7 @@ export async function saveBankItem(item: LanguageBankItem): Promise<void> {
   all.unshift(safe);
   writeMirror(all.slice(0, 30000));
   if (Capacitor.isNativePlatform()) {
-    try { await db.initialize(); await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS]); await new VocabularyRepository(db).upsertLanguageItem(safe); } catch {}
+    try { await db.initialize(); await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice]); await new VocabularyRepository(db).upsertLanguageItem(safe); } catch {}
   }
 }
 

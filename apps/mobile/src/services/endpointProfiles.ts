@@ -21,13 +21,31 @@ export async function hydrateEndpointProfilesFromSQLite():Promise<number>{
 }
 export function setActiveEndpointProfile(id:string){try{localStorage.setItem(ACTIVE,id)}catch{}}
 export function upsertEndpointProfile(input:Partial<EndpointProfile>&Pick<EndpointProfile,'baseUrl'>){
-  const all=read();const base=endpointRoot(input.baseUrl);const existing=all.find(x=>x.id===input.id) || all.find(x=>endpointRoot(x.baseUrl)===base);
-  const modelValue=input.model??existing?.model;
-  const lastProbeValue=input.lastProbe??existing?.lastProbe;
-  const lastSuccessValue=input.lastSuccess??existing?.lastSuccess;
-  const lastFailureValue=input.lastFailure??existing?.lastFailure;
-  const next:EndpointProfile={id:existing?.id||input.id||uid(),name:input.name||existing?.name||base,baseUrl:base,enabled:input.enabled??existing?.enabled??true,priority:input.priority??existing?.priority??50,protocols:input.protocols??existing?.protocols??[],capabilities:input.capabilities??existing?.capabilities??[],latencyMs:input.latencyMs??existing?.latencyMs??99999,failures:input.failures??existing?.failures??0,...(modelValue!=null?{model:modelValue}:{}),...(lastProbeValue!=null?{lastProbe:lastProbeValue}:{}),...(lastSuccessValue!=null?{lastSuccess:lastSuccessValue}:{}),...(lastFailureValue!=null?{lastFailure:lastFailureValue}:{})};
-  write([next,...all.filter(x=>x.id!==next.id)]); void persistEndpointProfile(next); return next;
+  const all=read();
+  const base=endpointRoot(input.baseUrl);
+  const existing=all.find(x=>x.id===input.id) || all.find(x=>endpointRoot(x.baseUrl)===base);
+  const next:EndpointProfile={
+    id:existing?.id||input.id||uid(),
+    name:input.name||existing?.name||base,
+    baseUrl:base,
+    enabled:input.enabled??existing?.enabled??true,
+    priority:input.priority??existing?.priority??50,
+    protocols:input.protocols??existing?.protocols??[],
+    capabilities:input.capabilities??existing?.capabilities??[],
+    latencyMs:input.latencyMs??existing?.latencyMs??99999,
+    failures:input.failures??existing?.failures??0
+  };
+  const model=input.model??existing?.model;
+  const lastProbe=input.lastProbe??existing?.lastProbe;
+  const lastSuccess=input.lastSuccess??existing?.lastSuccess;
+  const lastFailure=input.lastFailure??existing?.lastFailure;
+  if(model!==undefined) next.model=model;
+  if(lastProbe!==undefined) next.lastProbe=lastProbe;
+  if(lastSuccess!==undefined) next.lastSuccess=lastSuccess;
+  if(lastFailure!==undefined) next.lastFailure=lastFailure;
+  write([next,...all.filter(x=>x.id!==next.id)]);
+  void persistEndpointProfile(next);
+  return next;
 }
 export function removeEndpointProfile(id:string){write(read().filter(x=>x.id!==id));if(localStorage.getItem(ACTIVE)===id)try{localStorage.removeItem(ACTIVE)}catch{};void deleteEndpointProfile(id)}
 export function scoreEndpoint(p:EndpointProfile,need:EndpointCapability[]=['chat']){const caps=new Set(p.capabilities);const coverage=need.filter(x=>caps.has(x)).length/Math.max(1,need.length);const latency=Math.max(0,1-Math.min(1,p.latencyMs/5000));return coverage*70+latency*20+Math.max(0,Math.min(10,p.priority/10))-p.failures*8}

@@ -17,6 +17,7 @@ import com.yaali.assistant.plugins.LocalAIPlugin;
 import com.yaali.assistant.plugins.NativeSTTPlugin;
 import com.yaali.assistant.plugins.NativeTTSPlugin;
 import com.yaali.assistant.plugins.SecureStoragePlugin;
+import com.yaali.assistant.plugins.SherpaOnnxPlugin;
 
 public class MainActivity extends BridgeActivity {
     private static final int RC_AUDIO = 6001;
@@ -30,6 +31,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(LocalAIPlugin.class);
         registerPlugin(NativeSTTPlugin.class);
         registerPlugin(SecureStoragePlugin.class);
+        registerPlugin(SherpaOnnxPlugin.class);
         super.onCreate(state);
         if (Build.VERSION.SDK_INT >= 33) {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, predictiveBackCallback);

@@ -1,6 +1,6 @@
 import { getDatabaseManager } from '../languageBank';
-import type { EndpointProfile } from './endpointProfiles';
 import type { EndpointCapability, EndpointProtocol } from './endpointMatrix';
+import type { EndpointProfile } from './endpointProfiles';
 
 export async function persistEndpointProfile(profile:EndpointProfile):Promise<void>{
   try{
@@ -21,7 +21,7 @@ export async function loadEndpointProfilesFromSQLite():Promise<EndpointProfile[]
     const result=await db.query('SELECT id,name,base_url,model,enabled,priority,protocols_json,capabilities_json,latency_ms,last_probe,failures,last_success,last_failure FROM endpoint_profiles ORDER BY priority DESC');
     return (result.values||[]).map((row:any)=>({
       id:String(row.id),name:String(row.name),baseUrl:String(row.base_url),
-      enabled:Number(row.enabled)!==0,priority:Number(row.priority||50),protocols:jsonArray<EndpointProtocol>(row.protocols_json),capabilities:jsonArray<EndpointCapability>(row.capabilities_json),
+      enabled:Number(row.enabled)!==0,priority:Number(row.priority||50),protocols:jsonEnumArray<EndpointProtocol>(row.protocols_json, ['openai-v1','openai-responses','ollama-v1','ollama-native','lmstudio-v1','llamacpp','localai','vllm','mlc','unknown']),capabilities:jsonEnumArray<EndpointCapability>(row.capabilities_json, ['chat','responses','models','embeddings','generate','tags','health','streaming']),
       latencyMs:Number(row.latency_ms||99999),failures:Number(row.failures||0),
       ...(row.model!=null && row.model!=='' ? {model:String(row.model)} : {}),
       ...(row.last_probe!=null ? {lastProbe:Number(row.last_probe)} : {}),
@@ -30,4 +30,4 @@ export async function loadEndpointProfilesFromSQLite():Promise<EndpointProfile[]
     }));
   }catch{return []}
 }
-function jsonArray<T extends string>(value:unknown):T[]{try{const x=JSON.parse(String(value||'[]'));return Array.isArray(x)?(x.map(String) as T[]):[]}catch{return []}}
+function jsonEnumArray<T extends string>(value:unknown,allowed:readonly T[]):T[]{try{const x=JSON.parse(String(value||'[]'));if(!Array.isArray(x))return [];const set=new Set(allowed);return x.map(String).filter((item):item is T=>set.has(item as T));}catch{return []}}

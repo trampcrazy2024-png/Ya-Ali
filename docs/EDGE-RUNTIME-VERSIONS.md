@@ -1,24 +1,23 @@
-# Edge Runtime Versions
+# Ya-Ali Edge Runtime Versions — 1.0.5
 
-Current pinned runtime targets for the 0.5.0 Android build:
+| Runtime | Version | Model | Status |
+|---|---:|---|---|
+| llama.cpp | pinned source revision in CMake | GGUF | production path |
+| ExecuTorch Android | 1.4.0 | PTE + tokenizer | integrated; real device gate required |
+| ONNX Runtime Android | 1.29.0 | generic ONNX | integrated for task/runtime capability |
+| ONNX Runtime GenAI | 0.15.2 optional AAR | ONNX GenAI bundle | optional; build from source/AAR required |
+| LiteRT-LM Android | 0.16.1 | `.litertlm` | integrated; real device gate required |
 
-| Runtime | Version | Role |
-|---|---:|---|
-| ExecuTorch Android | 1.4.0 | PTE LLM execution |
-| ONNX Runtime Android | 1.29.0 | Generic ONNX runtime / foundation |
-| ONNX Runtime GenAI | 0.15.2 | Optional ONNX generative API, loaded as local AAR |
-| LiteRT-LM Android | 0.16.1 | LiteRT-LM capability detection and future stable bridge |
-| Android API | 36 | Android 16 target |
-| NDK | 28.2.13676358 | 16 KB page-size aware native build |
-| AGP | 8.13.2 | API 36 build tooling |
-| Gradle | 8.13 | Android build toolchain |
+## Non-GGUF execution rules
 
-ExecuTorch is wired through its Android Java LLM API. ONNX Runtime GenAI is intentionally optional because the official Java package is currently published as a source-built AAR rather than a stable Maven artifact. LiteRT-LM is detected from its installed Android library, but the bridge does not guess a reflection signature for generation; that avoids shipping a false-positive runtime.
+- A filename extension is not enough to prove execution compatibility.
+- ONNX GenAI is treated as a model bundle/directory; Ya-Ali supports importing a ZIP bundle containing the model files.
+- PTE requires tokenizer/model assets.
+- LiteRT-LM bundles carry the runtime-specific model package and do not use llama.cpp.
+- Raw Safetensors/PyTorch checkpoints are not accepted as direct chat runtimes.
 
-**Why:** non-GGUF formats require their own runtime. Renaming a file to `.gguf` must never turn it into a llama.cpp model.
+## Release caveats
 
-**When not to use:** do not claim ONNX GenAI or LiteRT-LM generation is active unless Diagnostics reports the corresponding runtime as available.
+ONNX Runtime GenAI's Java API is currently documented as requiring a source-built Android AAR, and its Android native packaging must be checked for 16 KB ELF alignment before release. The upstream build system now explicitly sets a 16 KB maximum page size for Android, but Ya-Ali must verify the actual packaged AAR/APK rather than trusting the flag.
 
-**Stale when:** any upstream runtime release, Java API, or Android packaging contract changes.
-
-Code: `android/app/src/main/java/com/yaali/assistant/plugins/EdgeAIRuntimePlugin.java`, `apps/mobile/src/modelFormats.ts`.
+LiteRT-LM 0.16.x has active native lifecycle crash reports. Ya-Ali therefore uses a short-lived engine/conversation lifecycle and still requires real-device regression tests before declaring it production-stable.

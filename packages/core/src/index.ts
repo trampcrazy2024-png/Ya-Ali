@@ -1,13 +1,28 @@
-export interface Disposable {
-  dispose(): void | Promise<void>;
-}
+export * from './corpus/types';
+export * from './corpus/parser';
+export * from './corpus/candidates';
+export * from './scenarios/types';
+export * from './scenarios/runtime';
+export * from './learning/types';
+export * from './learning/evaluation';
+export * from './ai/interfaces';
+export * from './application/learningLoop';
+export * from './corpus/commonVoice';
+export * from './corpus/cefr';
+export * from './learning/recommendation';
+export * from './application/ports';
+export * from './research/deepResearch';
+export * from './learning/adaptiveScenarioGenerator';
+export * from './learning/dynamicDifficulty';
+export * from './pronunciation/phonemeScoring';
+export * from './learning/sentenceMining';
+export * from './learning/grammarChecker';
+export * from './translation/translationMemory';
+export * from './corpus/contextVocabulary';
+export * from './corpus/curator';
+export * from './analytics/learningAnalytics';
+export * from './gamification/gamification';
+export * from './immersion/immersion';
+export * from './ai/advancedInterfaces';
 
-export interface HealthStatus {
-  healthy: boolean;
-  message?: string;
-}
-
-export interface AppService extends Disposable {
-  initialize(): Promise<void>;
-  healthCheck(): Promise<HealthStatus>;
-}
+export * from './learning/microChallenges';

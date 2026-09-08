@@ -16,16 +16,16 @@ button{cursor:pointer}
 .typing{color:#77cdbd;font-size:12px}.composer{display:flex;gap:8px;align-items:end}.composer textarea,.search,.translateInput,input,select{width:100%;background:#09111c;border:1px solid #2b3b4d;color:#f8fafc;border-radius:13px;padding:11px;outline:none}.composer textarea:focus,.search:focus,input:focus,textarea:focus,select:focus{border-color:#20b7a4}.sendBtn,.primary{background:#16a892;color:#06110f;border:0;border-radius:13px;padding:12px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:7px}.sendBtn:disabled,.primary:disabled{opacity:.4}.search{margin:15px 0 8px}.count{font-size:11px;color:#7f92a6;margin-bottom:12px}.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}.wordCard,.dictionary article{background:#111c2a;border:1px solid #26384a;border-radius:15px;padding:13px}.word{font-size:18px;font-weight:800}.phon{color:#6fcbbd;font-size:12px;margin:4px 0}.wordCard small{color:#8193a6}.cardActions{display:flex;gap:7px;margin-top:10px}.cardActions button,.dictionary button,.resultBox button,.settingsRow button,.learnActions button{border:1px solid #33475a;background:#0d1724;color:#d9e3ea;border-radius:10px;padding:8px;display:inline-flex;align-items:center;gap:5px}.learn{text-align:center}.learnCard{max-width:520px;margin:20px auto;padding:28px;border-radius:20px;background:#101f2b;border:1px solid #28504f}.label{font-size:11px;color:#83a0aa}.big{font-size:32px;font-weight:900;margin:14px 0}.wide{width:100%;margin-top:12px}.translation{margin-top:18px;font-size:18px}.learnActions{display:flex;gap:10px}.learnActions button{flex:1;justify-content:center;padding:12px}.score{margin-top:12px;color:#83a0aa;font-size:12px}.dictionary{display:grid;gap:10px;margin-top:14px}.dictionary h2{margin:0 0 7px}.dictionary button{margin-top:8px}.translateInput{min-height:160px;margin:12px 0;resize:vertical}.resultBox{margin-top:12px;background:#10232a;border:1px solid #245b54;border-radius:15px;padding:14px;line-height:1.9}.notice{padding:12px;border-radius:14px;background:#10262b;border:1px solid #24554f;color:#c9dddf;font-size:12px;line-height:1.8;margin:12px 0}.settings label{display:block;color:#a8b7c6;font-size:12px;margin:13px 0}.settings label input{display:block;margin-top:6px}.providerGrid{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}.providerGrid span{padding:7px 10px;border-radius:999px;background:#122820;border:1px solid #24594e;color:#8de0cf;font-size:11px}.settingsRow{display:grid;grid-template-columns:1fr 1fr;gap:8px}.settingsRow button:last-child{grid-column:1/-1;color:#ffb1b1}.bottomNav{position:fixed;z-index:30;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(6,1fr);background:#09111cF5;border-top:1px solid #253546;backdrop-filter:blur(14px);padding:7px 5px calc(7px + env(safe-area-inset-bottom))}.bottomNav button{border:0;background:none;color:#7f93a6;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;padding:5px 2px}.bottomNav button.active{color:#52d5c0}.toast{position:fixed;z-index:50;bottom:90px;left:50%;transform:translateX(-50%);max-width:90%;background:#d9fff7;color:#06231e;padding:10px 14px;border-radius:999px;font-size:11px;font-weight:800;box-shadow:0 8px 30px #0007}.toast button{border:0;background:none;font-size:18px;margin-right:6px}
 @media(max-width:560px){.main{padding:9px}.panel{padding:12px;border-radius:17px}.messages{max-height:55vh}.bubble{max-width:92%}.settingsRow{grid-template-columns:1fr}.settingsRow button:last-child{grid-column:auto}.bottomNav span{font-size:9px}}
 .selectors{display:flex;gap:10px;margin:10px 0}.selectors label{flex:1}select{width:100%;padding:10px;border-radius:10px}.diagnostics .logbox{max-height:280px;overflow:auto;direction:ltr;text-align:left;background:#090d14;color:#d7dde8;border-radius:12px;padding:12px;font:12px/1.5 monospace}.diagnostics .native{white-space:pre-wrap}.diagnostics h2{margin-top:18px}
-html,body,#root{width:100%;min-height:100%;overflow-x:hidden}
+html,body,#root{width:100%;min-height:100%;overflow-x:hidden}html{min-height:100%;background:#070b13}body{min-height:100%;overscroll-behavior-y:none;-webkit-text-size-adjust:100%}#root{min-height:100dvh}
 body{padding:env(safe-area-inset-top) 0 0}
 .app{min-height:calc(var(--vh, 1vh) * 100);padding-bottom:calc(82px + env(safe-area-inset-bottom))}
 .main{width:100%;min-width:0;padding-bottom:16px}
 .chat-panel{min-height:calc(var(--vh, 1vh) * 100 - 110px)}
-.messages{min-height:0;height:calc(var(--vh, 1vh) * 100 - 330px)}
-.composer{position:sticky;bottom:0;background:#0e1622;padding-top:8px}
+.messages{min-height:0;height:clamp(220px,calc(var(--vh, 1vh) * 100 - 330px),calc(100dvh - 330px));overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.composer{position:sticky;bottom:0;background:#0e1622;padding-top:8px;z-index:5;touch-action:manipulation}
 .bottomNav{grid-template-columns:repeat(7,minmax(0,1fr));padding-bottom:calc(7px + env(safe-area-inset-bottom))}
 .bottomNav button{min-width:0}
-.micBtn{flex:0 0 44px;height:44px}
+.micBtn{flex:0 0 46px;height:46px;min-width:46px}.micBtn.listening{border-color:#f87171;background:#3a1820;color:#ffb4bd;animation:micPulse 1.2s ease-in-out infinite}.micBtn:focus-visible,.sendBtn:focus-visible,.primary:focus-visible,.bottomNav button:focus-visible{outline:2px solid #67e8f9;outline-offset:2px}
 @media(max-width:560px){.topbar{padding:10px 11px}.brand{font-size:18px}.subtitle{font-size:9px}.selectors{display:block}.messages{height:calc(var(--vh, 1vh) * 100 - 300px)}.composer textarea{min-width:0}.bottomNav button{padding-inline:0}}
 
 .bubbleActions{display:flex;gap:6px;margin-top:7px;align-items:center}.bubbleActions .iconBtn{margin-top:0}
@@ -87,3 +87,105 @@ body{padding:env(safe-area-inset-top) 0 0}
 body { padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); overscroll-behavior-y: none; }
 button, input, select, textarea { font: inherit; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+
+/* Ya Ali 1.0.2 — production mobile viewport layer */
+html{width:100%;min-height:100%;background:#070b13;overscroll-behavior:none}
+html,body,#root{max-width:100%;min-width:0;overflow-x:hidden}
+body{min-height:100dvh;min-height:100svh;padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);padding-bottom:0;overscroll-behavior-y:none}
+#root{min-height:100dvh;min-height:100svh}
+.app{min-height:100dvh;min-height:100svh;padding-bottom:calc(82px + env(safe-area-inset-bottom));width:100%;max-width:100vw}
+.topbar{padding-top:max(10px,env(safe-area-inset-top));padding-left:max(11px,env(safe-area-inset-left));padding-right:max(11px,env(safe-area-inset-right))}
+.main{width:100%;max-width:900px;min-width:0;padding-bottom:calc(18px + env(safe-area-inset-bottom))}
+.panel{max-width:100%;min-width:0;overflow:hidden}
+.messages{height:auto;min-height:0;max-height:none;flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.chat-panel{min-height:calc(100dvh - 110px);min-height:calc(100svh - 110px);display:flex;flex-direction:column}
+.chat-panel .messages{min-height:180px;max-height:calc(100dvh - 285px);max-height:calc(100svh - 285px)}
+.composer{position:sticky;bottom:0;z-index:10;padding-bottom:8px}
+.composer textarea{min-height:44px;max-height:28dvh;resize:none}
+.bottomNav{padding-bottom:max(7px,calc(7px + env(safe-area-inset-bottom)));left:env(safe-area-inset-left);right:env(safe-area-inset-right)}
+.bottomNav button{min-width:0;touch-action:manipulation}
+.micBtn{min-width:44px;min-height:44px;touch-action:manipulation}
+.voicePackGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:9px;margin:10px 0}
+.voicePackCard{background:#0c1723;border:1px solid #29404e;border-radius:14px;padding:11px;min-width:0}
+.voicePackCard strong,.voicePackCard small{display:block}.voicePackCard small{color:#8196a7;font-size:10px;margin-top:3px}.voicePackCard p{font-size:11px;color:#9eb0bc;line-height:1.7;margin:7px 0}
+@media(max-width:560px){.main{padding:7px;padding-bottom:calc(14px + env(safe-area-inset-bottom))}.panel{padding:11px}.chat-panel{min-height:calc(100dvh - 92px);min-height:calc(100svh - 92px)}.chat-panel .messages{max-height:calc(100dvh - 270px);max-height:calc(100svh - 270px)}.composer{gap:6px}.composer textarea{font-size:14px}.sendBtn,.primary{min-height:44px}.bottomNav{padding-left:4px;padding-right:4px}.bottomNav button{font-size:9px}.bottomNav span{max-width:15vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.voicePackGrid{grid-template-columns:1fr}}
+@media(orientation:landscape) and (max-height:560px){.bottomNav{position:fixed}.chat-panel .messages{max-height:calc(100dvh - 190px);max-height:calc(100svh - 190px)}}
+
+
+/* Ya Ali 1.0.2 — production mobile viewport layer */
+html{width:100%;min-height:100%;background:#070b13;overscroll-behavior:none}
+html,body,#root{max-width:100%;min-width:0;overflow-x:hidden}
+body{min-height:100dvh;min-height:100svh;padding-top:env(safe-area-inset-top);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);padding-bottom:0;overscroll-behavior-y:none}
+#root{min-height:100dvh;min-height:100svh}
+.app{min-height:100dvh;min-height:100svh;padding-bottom:calc(82px + env(safe-area-inset-bottom));width:100%;max-width:100vw}
+.topbar{padding-top:max(10px,env(safe-area-inset-top));padding-left:max(11px,env(safe-area-inset-left));padding-right:max(11px,env(safe-area-inset-right))}
+.main{width:100%;max-width:900px;min-width:0;padding-bottom:calc(18px + env(safe-area-inset-bottom))}
+.panel{max-width:100%;min-width:0;overflow:hidden}
+.messages{height:auto;min-height:0;max-height:none;flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.chat-panel{min-height:calc(100dvh - 110px);min-height:calc(100svh - 110px);display:flex;flex-direction:column}
+.chat-panel .messages{min-height:180px;max-height:calc(100dvh - 285px);max-height:calc(100svh - 285px)}
+.composer{position:sticky;bottom:0;z-index:10;padding-bottom:8px}
+.composer textarea{min-height:44px;max-height:28dvh;resize:none}
+.bottomNav{padding-bottom:max(7px,calc(7px + env(safe-area-inset-bottom)));left:env(safe-area-inset-left);right:env(safe-area-inset-right)}
+.bottomNav button{min-width:0;touch-action:manipulation}
+.micBtn{min-width:44px;min-height:44px;touch-action:manipulation}
+.voicePackGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:9px;margin:10px 0}
+.voicePackCard{background:#0c1723;border:1px solid #29404e;border-radius:14px;padding:11px;min-width:0}
+.voicePackCard strong,.voicePackCard small{display:block}.voicePackCard small{color:#8196a7;font-size:10px;margin-top:3px}.voicePackCard p{font-size:11px;color:#9eb0bc;line-height:1.7;margin:7px 0}
+@media(max-width:560px){.main{padding:7px;padding-bottom:calc(14px + env(safe-area-inset-bottom))}.panel{padding:11px}.chat-panel{min-height:calc(100dvh - 92px);min-height:calc(100svh - 92px)}.chat-panel .messages{max-height:calc(100dvh - 270px);max-height:calc(100svh - 270px)}.composer{gap:6px}.composer textarea{font-size:14px}.sendBtn,.primary{min-height:44px}.bottomNav{padding-left:4px;padding-right:4px}.bottomNav button{font-size:9px}.bottomNav span{max-width:15vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.voicePackGrid{grid-template-columns:1fr}}
+@media(orientation:landscape) and (max-height:560px){.bottomNav{position:fixed}.chat-panel .messages{max-height:calc(100dvh - 190px);max-height:calc(100svh - 190px)}}
+
+/* 1.0.3 mobile interaction layer: one page scroll, isolated chat scroll, no clipped panels. */
+html,body,#root{overflow-x:hidden;overflow-y:auto;touch-action:pan-y}
+body{overscroll-behavior-y:auto}
+.app{overflow:visible}
+.main{overflow:visible;touch-action:pan-y}
+.panel{overflow:visible}
+.chat-panel{overflow:hidden}
+.chat-panel .messages{overscroll-behavior:contain;touch-action:pan-y}
+.bottomNav{grid-template-columns:repeat(8,minmax(0,1fr));overflow-x:auto;overflow-y:hidden;scrollbar-width:none;touch-action:pan-x}
+.bottomNav::-webkit-scrollbar{display:none}
+.bottomNav button{min-width:64px}
+.scenarioMeta{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.scenarioMeta span{padding:6px 9px;border:1px solid #294858;border-radius:999px;background:#0b1722;color:#9fd8cf;font-size:10px}.scenarioChips{margin-bottom:12px}.scenarioGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:10px}.scenarioCard{display:flex;flex-direction:column;min-width:0;padding:13px;border:1px solid #294858;border-radius:16px;background:linear-gradient(145deg,#101d29,#0b141f)}.scenarioCardHead{display:flex;justify-content:space-between;align-items:center;gap:8px}.scenarioCardHead span{font-size:10px;color:#82bdb5}.scenarioCardHead b{font-size:10px;color:#d4e8e5;padding:4px 7px;border-radius:999px;background:#17332f}.scenarioCard h2{font-size:16px;margin:10px 0 6px}.scenarioCard p{font-size:11px;line-height:1.8;color:#a5b6c2;margin:0 0 8px}.scenarioRoles{display:grid;gap:5px;margin:5px 0 8px}.scenarioRoles span{font-size:10px;color:#c3d1d8}.scenarioCard small{font-size:10px;line-height:1.7;color:#8198a7}.scenarioCard .wide{margin-top:auto}.scenarioCard .primary{margin-top:10px}
+@media(max-width:560px){.scenarioGrid{grid-template-columns:1fr}.scenarioCard{padding:12px}.bottomNav button{min-width:58px}.bottomNav span{max-width:58px}}
+
+/* Ya Ali 1.0.4 — final Android WebView interaction layer */
+html, body, #root { width:100%; max-width:100%; min-width:0; min-height:100%; overflow-x:hidden; overflow-y:auto; touch-action:pan-y; }
+body { margin:0; min-height:100dvh; min-height:100svh; padding:0; -webkit-overflow-scrolling:touch; }
+#root { min-height:100dvh; min-height:100svh; }
+.app { width:100%; min-height:100dvh; min-height:100svh; max-width:100vw; overflow:visible; padding-bottom:calc(82px + env(safe-area-inset-bottom)); }
+.main { width:100%; max-width:900px; min-width:0; margin-inline:auto; padding-bottom:calc(24px + env(safe-area-inset-bottom)); overflow:visible; }
+.panel { width:100%; max-width:100%; min-width:0; overflow:visible; }
+.panel > * { min-width:0; }
+.composer { position:sticky; bottom:calc(58px + env(safe-area-inset-bottom)); z-index:10; background:#0e1622; padding-top:8px; }
+.messages { overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; scrollbar-gutter:stable; }
+.chat-panel { min-height:calc(100dvh - 110px); min-height:calc(100svh - 110px); display:flex; flex-direction:column; overflow:visible; }
+.chat-panel .messages { flex:1 1 auto; min-height:180px; max-height:calc(100dvh - 300px); max-height:calc(100svh - 300px); }
+.bottomNav { position:fixed; z-index:30; bottom:0; left:0; right:0; min-height:58px; padding-bottom:calc(7px + env(safe-area-inset-bottom)); }
+.bottomNav button { min-width:0; min-height:44px; touch-action:manipulation; }
+.micBtn { flex:0 0 46px; width:46px; min-width:46px; height:46px; min-height:46px; border-radius:14px; touch-action:manipulation; }
+.composer textarea { min-width:0; min-height:46px; max-height:30dvh; resize:none; }
+.settingsRow { min-width:0; }
+.settingsRow > * { min-width:0; }
+.pronunciationManager { display:grid; gap:10px; }
+.pronunciationList { display:grid; gap:8px; margin-top:8px; }
+.pronunciationAsset { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px; border:1px solid #29404e; border-radius:13px; background:#0b1520; min-width:0; }
+.pronunciationAsset strong, .pronunciationAsset small { display:block; overflow-wrap:anywhere; }
+.pronunciationAsset small { color:#8196a7; font-size:10px; margin-top:3px; }
+@media(max-width:560px){
+  .main { padding:7px 7px calc(22px + env(safe-area-inset-bottom)); }
+  .panel { padding:11px; border-radius:16px; }
+  .chat-panel { min-height:calc(100dvh - 92px); min-height:calc(100svh - 92px); }
+  .chat-panel .messages { max-height:calc(100dvh - 290px); max-height:calc(100svh - 290px); }
+  .composer { bottom:calc(58px + env(safe-area-inset-bottom)); }
+  .pronunciationAsset { align-items:flex-start; flex-direction:column; }
+  .pronunciationAsset .cardActions { width:100%; }
+  .pronunciationAsset .cardActions button { flex:1; justify-content:center; }
+}
+@media(orientation:landscape) and (max-height:560px){
+  .chat-panel .messages { max-height:calc(100dvh - 210px); max-height:calc(100svh - 210px); }
+}
+
+@keyframes micPulse{50%{transform:scale(1.05);box-shadow:0 0 0 7px #f8717122}}
+@media(max-width:560px){.chat-panel{min-height:calc(100dvh - 82px)}.messages{height:clamp(220px,calc(100dvh - 300px),calc(100dvh - 250px))}.composer textarea{max-height:28dvh;overflow-y:auto}.bottomNav{min-height:62px}.bottomNav button{min-height:48px}}

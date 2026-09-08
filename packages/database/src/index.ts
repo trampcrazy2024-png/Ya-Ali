@@ -11,3 +11,10 @@ export * from './repositories/VocabularyRepository';
 export * from './migrations/v003_learning';
 export * from './migrations/v004_learning_runtime';
 export * from './migrations/v005_learning_os';
+export * from './migrations/v006_adaptive_learning';
+export * from './repositories/AdaptiveLearningRepository';
+export * from './repositories/ScenarioRepository';
+export * from './migrations/v007_learning_indexes';
+
+export * from './migrations/v008_learning_features';
+export * from './migrations/v009_adaptive_voice';

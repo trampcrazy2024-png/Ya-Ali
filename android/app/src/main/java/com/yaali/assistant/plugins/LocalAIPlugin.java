@@ -20,6 +20,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -70,7 +72,7 @@ public class LocalAIPlugin extends Plugin {
             r.put("path", dest.getAbsolutePath());
             r.put("name", dest.getName());
             r.put("sizeBytes", dest.length());
-            r.put("format", detectFormat(dest.getName()));
+            r.put("format", dest.isDirectory() ? "onnx" : detectFormat(dest.getName()));
             r.put("imported", true);
             r.put("engineReady", false);
             call.resolve(r);
@@ -89,9 +91,10 @@ public class LocalAIPlugin extends Plugin {
             } finally { c.close(); }
         }
         String lower = name.toLowerCase();
-        if (!(lower.endsWith(".gguf") || lower.endsWith(".onnx") || lower.endsWith(".pte") || lower.endsWith(".safetensors") || lower.endsWith(".bin") || lower.endsWith(".pt") || lower.endsWith(".pth") || lower.endsWith(".tflite"))) throw new IOException("Unsupported model file format");
+        if (!(lower.endsWith(".gguf") || lower.endsWith(".onnx") || lower.endsWith(".pte") || lower.endsWith(".safetensors") || lower.endsWith(".bin") || lower.endsWith(".pt") || lower.endsWith(".pth") || lower.endsWith(".tflite") || lower.endsWith(".zip"))) throw new IOException("Unsupported model file format");
         File dir = new File(getContext().getFilesDir(), MODEL_DIR);
         if (!dir.exists() && !dir.mkdirs()) throw new IOException("cannot create models directory");
+        if (lower.endsWith(".zip")) return importZipBundle(uri, name, dir);
         File dest = new File(dir, name);
         try (InputStream in = getContext().getContentResolver().openInputStream(uri);
              FileOutputStream out = new FileOutputStream(dest)) {
@@ -103,6 +106,67 @@ public class LocalAIPlugin extends Plugin {
         return dest;
     }
 
+
+    private File importZipBundle(Uri uri, String name, File modelDir) throws Exception {
+        String base = name.substring(0, name.length() - 4).replaceAll("[^A-Za-z0-9._-]", "_");
+        File root = new File(modelDir, base);
+        if (!root.exists() && !root.mkdirs()) throw new IOException("cannot create model bundle directory");
+        String canonicalRoot = root.getCanonicalPath() + File.separator;
+        try (InputStream raw = getContext().getContentResolver().openInputStream(uri); ZipInputStream zin = new ZipInputStream(raw)) {
+            if (raw == null) throw new IOException("cannot open model bundle");
+            ZipEntry entry;
+            byte[] buffer = new byte[1024 * 1024];
+            while ((entry = zin.getNextEntry()) != null) {
+                String entryName = entry.getName().replace('\\', '/');
+                File out = new File(root, entryName);
+                if (!out.getCanonicalPath().startsWith(canonicalRoot)) throw new IOException("Unsafe ZIP entry");
+                if (entry.isDirectory()) { if (!out.exists() && !out.mkdirs()) throw new IOException("cannot create bundle directory"); continue; }
+                File parent = out.getParentFile();
+                if (parent != null && !parent.exists() && !parent.mkdirs()) throw new IOException("cannot create bundle parent");
+                try (FileOutputStream fos = new FileOutputStream(out)) { int n; while ((n = zin.read(buffer)) != -1) fos.write(buffer, 0, n); }
+            }
+        }
+        File bundle = findOnnxBundle(root);
+        if (bundle == null) throw new IOException("ZIP model bundle does not contain an ONNX model");
+        return bundle;
+    }
+
+    private static boolean containsExtension(File root, String extension) {
+        File[] files = root.listFiles();
+        if (files == null) return false;
+        for (File f : files) { if (f.isDirectory() && containsExtension(f, extension)) return true; if (f.isFile() && f.getName().toLowerCase().endsWith(extension)) return true; }
+        return false;
+    }
+
+    private static boolean isOnnxBundle(File root) {
+        return root.isDirectory() && containsExtension(root, ".onnx");
+    }
+
+    private static File findOnnxBundle(File root) {
+        if (!root.isDirectory()) return null;
+        File[] files = root.listFiles();
+        if (files == null) return null;
+        for (File f : files) {
+            if (f.isDirectory()) {
+                File nested = findOnnxBundle(f);
+                if (nested != null) return nested;
+            }
+        }
+        boolean hasConfig = new File(root, "genai_config.json").isFile() || new File(root, "config.json").isFile();
+        return hasConfig && containsExtension(root, ".onnx") ? root : (containsExtension(root, ".onnx") ? root : null);
+    }
+
+    private static long directorySize(File f) {
+        if (f.isFile()) return f.length();
+        long total = 0L; File[] children = f.listFiles();
+        if (children != null) for (File child : children) total += directorySize(child);
+        return total;
+    }
+
+    private static boolean deleteRecursively(File f) {
+        if (f.isDirectory()) { File[] children = f.listFiles(); if (children != null) for (File child : children) if (!deleteRecursively(child)) return false; }
+        return !f.exists() || f.delete();
+    }
     @PluginMethod
     public void pickTokenizer(PluginCall call) {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -130,15 +194,15 @@ public class LocalAIPlugin extends Plugin {
         File dir = new File(getContext().getFilesDir(), MODEL_DIR);
         JSArray arr = new JSArray();
         if (dir.isDirectory()) {
-            File[] files = dir.listFiles((d, n) -> n != null && isSupportedModelName(n));
+            File[] files = dir.listFiles((d, n) -> n != null && (isSupportedModelName(n) || isOnnxBundle(new File(d, n))));
             if (files != null) {
                 java.util.Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
                 for (File f : files) {
                     JSObject item = new JSObject();
                     item.put("path", f.getAbsolutePath());
                     item.put("name", f.getName());
-                    item.put("sizeBytes", f.length());
-                    item.put("format", detectFormat(f.getName()));
+                    item.put("sizeBytes", directorySize(f));
+                    item.put("format", f.isDirectory() ? "onnx" : detectFormat(f.getName()));
                     item.put("loaded", loadedModel != null && f.equals(loadedModel) && engineReady);
                     arr.put(item);
                 }
@@ -163,7 +227,7 @@ public class LocalAIPlugin extends Plugin {
                 nativeUnloadModel(); loadedModel = null; engineReady = false; engineError = "";
             }
             JSObject out = new JSObject();
-            out.put("deleted", f.exists() && f.delete());
+            out.put("deleted", f.exists() && deleteRecursively(f));
             call.resolve(out);
         } catch (Exception e) { call.reject("Cannot delete model: " + e.getMessage()); }
     }

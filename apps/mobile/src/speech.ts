@@ -1,14 +1,27 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { startOfflineStt, stopOfflineStt } from './services/audioPipeline';
+import { listSherpaSttModels } from './services/sherpaModelManager';
 const NativeSTT = registerPlugin<any>('NativeSTT');
 
 export async function speechAvailability(){
   if(!Capacitor.isNativePlatform()) return {available:!!((window as any).SpeechRecognition||(window as any).webkitSpeechRecognition),onDeviceAvailable:false};
   try{return await NativeSTT.isAvailable()}catch{return {available:false,onDeviceAvailable:false}}
 }
-export async function stopSpeech(){if(Capacitor.isNativePlatform()){try{await NativeSTT.stop()}catch{}}}
+export async function stopSpeech(){if(Capacitor.isNativePlatform()){try{await NativeSTT.stop()}catch{}; try{await stopOfflineStt()}catch{}}}
 
 export async function listenSpeech(lang = 'fa-IR'): Promise<string> {
   if (Capacitor.isNativePlatform()) {
+    const sherpa = listSherpaSttModels().find(x => lang.toLowerCase().startsWith(x.language.toLowerCase()) || x.dialect.toLowerCase() === lang.toLowerCase());
+    if (sherpa) {
+      try {
+        await startOfflineStt({modelDir:sherpa.modelDir,encoder:sherpa.encoder,decoder:sherpa.decoder,joiner:sherpa.joiner,tokens:sherpa.tokens});
+        return await stopOfflineStt();
+      } catch (e:any) {
+        // Keep the existing Android recognizer as a resilient fallback.
+        const message=String(e?.message||e||'Sherpa-ONNX STT failed');
+        if (!/model|Sherpa|AudioRecord|runtime/i.test(message)) throw e;
+      }
+    }
     try {
       const r = await NativeSTT.listen({ lang });
       return String(r?.text || '').trim();

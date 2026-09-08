@@ -130,7 +130,7 @@ export function reviewItem(id:string,rating:ReviewRating,options?:{now?:number;r
   all[id]=state;write(all);
   void persistReviewState(id,state as unknown as Record<string,unknown>);
   void persistReviewLog({itemId:id,rating,...(options?.signal?{signal:options.signal}:{}),retentionTarget:options?.retention??DEFAULT_RETENTION,elapsedDays:elapsed,stability,difficulty,dueAt:due,reviewedAt:now,state:state as unknown as Record<string,unknown>});
-  void appendLearningEvent({itemId:id,...(options?.signal?{skill:options.signal,signal:(g===1?1:g===2?.35:-.15)}:{}),rating,payload:{state,stability,difficulty,interval,lapses}});
+  void appendLearningEvent({itemId:id,rating,payload:{state,stability,difficulty,interval,lapses},...(options?.signal ? {skill:options.signal,signal:g===1?1:g===2?.35:-.15} : {})});
   return state;
 }
 
