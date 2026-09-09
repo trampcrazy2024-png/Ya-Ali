@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { DatabaseManager, MigrationRunner, migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice, VocabularyRepository, ScenarioRepository } from '@yaali/database';
+import { DatabaseManager, MigrationRunner, migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice, migration010LailiPhase1, VocabularyRepository, ScenarioRepository } from '@yaali/database';
 import type { LanguageBankItem } from '@yaali/database';
 import { PHRASES } from './data';
 import { SEED_WORDS } from './vocabularySeed';
@@ -81,7 +81,7 @@ export async function initLanguageBank(): Promise<void> {
   if (Capacitor.isNativePlatform()) {
     try {
       await db.initialize();
-      await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice]);
+      await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice, migration010LailiPhase1]);
       const repo = new VocabularyRepository(db);
       for (const item of [...seeds, ...wordSeeds, ...scenarioSeeds, ...everydaySentenceSeeds]) await repo.upsertLanguageItem(item);
       const scenarioRepo = new ScenarioRepository(db);
@@ -102,7 +102,7 @@ export async function initLanguageBank(): Promise<void> {
 
 export async function getDatabaseManager(): Promise<DatabaseManager> {
   await db.initialize();
-  await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice]);
+  await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice, migration010LailiPhase1]);
   return db;
 }
 
@@ -127,7 +127,7 @@ export async function saveBankItem(item: LanguageBankItem): Promise<void> {
   all.unshift(safe);
   writeMirror(all.slice(0, 30000));
   if (Capacitor.isNativePlatform()) {
-    try { await db.initialize(); await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice]); await new VocabularyRepository(db).upsertLanguageItem(safe); } catch {}
+    try { await db.initialize(); await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice, migration010LailiPhase1]); await new VocabularyRepository(db).upsertLanguageItem(safe); } catch {}
   }
 }
 

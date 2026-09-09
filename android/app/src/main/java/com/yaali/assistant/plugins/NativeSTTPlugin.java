@@ -57,9 +57,13 @@ public class NativeSTTPlugin extends Plugin {
     }
 
     private void beginListen(PluginCall call) {
-        boolean available = false;
-        try { available = SpeechRecognizer.isRecognitionAvailable(getContext()); } catch (Throwable ignored) {}
-        if (!available) { call.reject("سرویس تشخیص گفتار Android در دسترس نیست."); return; }
+        // Do NOT hard-reject on isRecognitionAvailable()==false anymore. On some
+        // OEM ROMs / devices without the Google app this check under-reports even
+        // when a usable recognizer exists, and it previously produced a dead-end
+        // "not available" error the instant the mic button was pressed, before we
+        // even tried. We now always attempt the system activity first; the real
+        // "no recognizer on this device" case is still caught further down and
+        // reported with an actionable message instead of a generic one.
         pendingCall = call; pendingLanguage = call.getString("lang", "fa-IR"); finished=false; directFallbackStarted=false;
         try { startActivityForResult(call, buildIntent(pendingLanguage), "speechResult"); }
         catch (Throwable e) { startDirectRecognizer(); }
@@ -94,6 +98,18 @@ public class NativeSTTPlugin extends Plugin {
     private void startDirectRecognizer() {
         mainHandler.post(() -> {
             if (finished || pendingCall == null) return;
+            boolean available = false;
+            try { available = SpeechRecognizer.isRecognitionAvailable(getContext()); } catch (Throwable ignored) {}
+            if (!available) {
+                // Both the system recognition activity and the direct recognizer
+                // path have now failed/are unavailable. This device genuinely has
+                // no speech-recognition service registered (very common on Iranian
+                // Android devices that ship without Google Play Services / the
+                // Google app). Give the user something actionable instead of a
+                // dead end: switch to the offline Sherpa-ONNX model from Settings.
+                rejectOnce("این گوشی هیچ سرویس تشخیص گفتار سیستمی ندارد (معمولاً به دلیل نبود Google App). برای استفاده از میکروفن، یک «مدل گفتار آفلاین (Sherpa-ONNX STT)» را از بخش تنظیمات ← Audio Core نصب کنید؛ یا فعلاً پیام را تایپ کنید.");
+                return;
+            }
             try {
                 destroyRecognizer();
                 recognizer = (Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(getContext()))

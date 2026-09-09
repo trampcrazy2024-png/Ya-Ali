@@ -18,3 +18,5 @@ export * from './migrations/v007_learning_indexes';
 
 export * from './migrations/v008_learning_features';
 export * from './migrations/v009_adaptive_voice';
+export * from './migrations/v010_laili_phase1';
+export * from './repositories/LearnerSkillStateRepository';

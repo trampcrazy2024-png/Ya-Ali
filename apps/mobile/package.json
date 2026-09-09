@@ -12,6 +12,7 @@
   "dependencies": {
     "@capacitor-community/sqlite": "^7.0.0",
     "@capacitor/core": "^7.0.0",
+    "@capacitor/filesystem": "^7.0.0",
     "@yaali/core": "0.1.0",
     "@yaali/database": "0.1.0",
     "@yaali/shared": "0.1.0",

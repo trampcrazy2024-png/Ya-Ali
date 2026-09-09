@@ -47,7 +47,7 @@ export async function discoverCustomModels():Promise<string[]>{
 export async function inspectCustomEndpoint(){return probeEndpoint(getCustomEndpoint())}
 
 
-export type DiscoveredModel={id:string;provider:ProviderId;contextWindow?:number;active?:boolean;source:string};
+export type DiscoveredModel={id:string;provider:ProviderId;contextWindow?:number|undefined;active?:boolean;source:string};
 export async function discoverProviderModels(id:ProviderId):Promise<DiscoveredModel[]>{
   if(id==='openrouter'){const d=await request('https://openrouter.ai/api/v1/models',{method:'GET'});return (d?.data||[]).filter((m:any)=>String(m?.id||'').endsWith(':free')).map((m:any)=>({id:String(m.id),provider:id,contextWindow:Number(m?.context_length||0)||undefined,source:'OpenRouter'}));}
   if(id==='groq'){const d=await request('https://api.groq.com/openai/v1/models',{method:'GET',headers:{Authorization:`Bearer ${getGroqApiKey()}`}});return (d?.data||[]).filter((m:any)=>m?.active!==false).map((m:any)=>({id:String(m.id),provider:id,contextWindow:Number(m?.context_window||0)||undefined,active:m?.active,source:'Groq'}));}

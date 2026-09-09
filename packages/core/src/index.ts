@@ -26,3 +26,5 @@ export * from './immersion/immersion';
 export * from './ai/advancedInterfaces';
 
 export * from './learning/microChallenges';
+export * from './learning/memoryTiers';
+export * from './learning/learnerModel';

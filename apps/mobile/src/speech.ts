@@ -1,12 +1,30 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { startOfflineStt, stopOfflineStt } from './services/audioPipeline';
 import { listSherpaSttModels } from './services/sherpaModelManager';
+import { RECOMMENDED_STT_MODELS, isRecommendedSttModelInstalled } from './services/offlineSttSetup';
 const NativeSTT = registerPlugin<any>('NativeSTT');
 
 export async function speechAvailability(){
   if(!Capacitor.isNativePlatform()) return {available:!!((window as any).SpeechRecognition||(window as any).webkitSpeechRecognition),onDeviceAvailable:false};
   try{return await NativeSTT.isAvailable()}catch{return {available:false,onDeviceAvailable:false}}
 }
+
+// Lightweight device-readiness check (RC1 roadmap item 2: "Onboarding هوشمند
+// دستگاه"). Not a wizard/new screen — just a single answer the Settings UI
+// and the mic-button error path can both use to tell the user the ONE most
+// useful next step for their specific device, instead of a generic error.
+export interface VoiceReadiness { systemRecognizerAvailable: boolean; offlineEnglishInstalled: boolean; online: boolean; recommendation: string }
+export async function getVoiceReadiness(): Promise<VoiceReadiness> {
+  const avail = await speechAvailability();
+  const offlineEnglishInstalled = isRecommendedSttModelInstalled(RECOMMENDED_STT_MODELS[0].id);
+  const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  let recommendation: string;
+  if (avail.available) recommendation = 'سرویس گفتار سیستمی این گوشی در دسترس است؛ میکروفون باید کار کند.';
+  else if (offlineEnglishInstalled) recommendation = 'این گوشی سرویس گفتار سیستمی ندارد، ولی مدل آفلاین انگلیسی نصب است — میکروفون برای تمرین انگلیسی کار می‌کند. برای دیکته فارسی فعلاً تایپ کنید.';
+  else recommendation = 'این گوشی سرویس گفتار سیستمی ندارد (رایج روی گوشی‌های بدون Google). از تنظیمات ← «نصب یک‌کلیکی گفتار آفلاین» مدل انگلیسی را نصب کنید تا میکروفون در تمرین انگلیسی کار کند.';
+  return { systemRecognizerAvailable: !!avail.available, offlineEnglishInstalled, online, recommendation };
+}
+
 export async function stopSpeech(){if(Capacitor.isNativePlatform()){try{await NativeSTT.stop()}catch{}; try{await stopOfflineStt()}catch{}}}
 
 export async function listenSpeech(lang = 'fa-IR'): Promise<string> {

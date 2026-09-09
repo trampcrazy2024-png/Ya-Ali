@@ -1,14 +1,9 @@
 package com.yaali.assistant;
 
-import android.Manifest;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Build;
 import android.window.OnBackInvokedCallback;
 import android.window.OnBackInvokedDispatcher;
-
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.BridgeActivity;
 import com.yaali.assistant.plugins.DiagnosticsPlugin;
@@ -20,7 +15,6 @@ import com.yaali.assistant.plugins.SecureStoragePlugin;
 import com.yaali.assistant.plugins.SherpaOnnxPlugin;
 
 public class MainActivity extends BridgeActivity {
-    private static final int RC_AUDIO = 6001;
     private long lastBackAt = 0L;
     private final OnBackInvokedCallback predictiveBackCallback = this::handleBack;
 
@@ -36,9 +30,13 @@ public class MainActivity extends BridgeActivity {
         if (Build.VERSION.SDK_INT >= 33) {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, predictiveBackCallback);
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, RC_AUDIO);
-        }
+        // NOTE (RC1 fix): RECORD_AUDIO used to be requested here directly via
+        // ActivityCompat, separately from Capacitor's own permission plugin
+        // system, and its result was never handled (no onRequestPermissionsResult
+        // override). That produced a mic permission dialog on first launch that
+        // was disconnected from NativeSTTPlugin's own permission flow, and could
+        // race with it. Permission is now requested exactly once, at the moment
+        // it's actually needed, by NativeSTTPlugin itself (see listen()).
     }
 
     private void handleBack() {

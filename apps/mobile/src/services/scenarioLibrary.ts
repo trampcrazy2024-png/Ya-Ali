@@ -1,4 +1,5 @@
 import { EVERYDAY_SCENARIOS } from '../everydayScenarioExpansion';
+import { SCENARIO_EXPANSION_V2 } from '../scenarioExpansionV2';
 
 export type ScenarioCategory =
   | 'travel' | 'work' | 'service' | 'health' | 'social' | 'education'
@@ -71,6 +72,7 @@ export const SCENARIOS: Scenario[] = [
   { id:'apartment-viewing', titleFa:'بازدید خانه و سؤال‌های اجاره', titleEn:'Apartment viewing', category:'home', level:'B1', dialects:['american','iraqi','lebanese'], context:'فرد خانه‌ای را می‌بیند و درباره شرایط، تعمیرات و قوانین سؤال دارد.', roles:[role('viewer','متقاضی اجاره','Viewer','می‌خواهد شرایط واقعی خانه را بفهمد.',['پرسیدن امکانات','پرسیدن هزینه‌های جانبی']),role('agent','مشاور املاک','Agent','باید اطلاعات ملک را روشن کند و سؤال‌های دقیق را پاسخ دهد.',['شرح ملک','توضیح شرایط'])], objective:'قبل از تصمیم، سؤال‌های مهم و قابل بررسی را بپرسید.', constraints:['قوانین محلی یا هزینه واقعی را حدس نزن.'], opening:'View an apartment and ask practical questions before deciding.', turnPlan:['شرح نیاز','پرسیدن شرایط','بررسی مشکل','پرسیدن هزینه‌های جانبی','قدم بعدی'], tags:['apartment','rent','housing'] },
   { id:'community-volunteer', titleFa:'ثبت‌نام برای کار داوطلبانه', titleEn:'Volunteer registration', category:'social', level:'B1', dialects:['american','iraqi','lebanese'], context:'فرد می‌خواهد در یک فعالیت داوطلبانه مشارکت کند و درباره نقش‌ها سؤال دارد.', roles:[role('volunteer','داوطلب','Volunteer','می‌خواهد بداند چه کاری، چه زمانی و با چه مهارتی لازم است.',['شرح توانایی','انتخاب نقش']),role('coordinator','هماهنگ‌کننده','Coordinator','باید نیاز پروژه و وظایف را توضیح دهد.',['شرح وظیفه','هماهنگی زمان'])], objective:'نقش مناسب را انتخاب و مسئولیت را تأیید کنید.', constraints:['سازمان واقعی یا اطلاعات تماس واقعی لازم نیست.'], opening:'Ask how you can volunteer for a community activity.', turnPlan:['بیان علاقه','پرسیدن نیاز','شرح توانایی','انتخاب نقش','زمان‌بندی','تأیید'], tags:['volunteer','community','social'] },
   ...EVERYDAY_SCENARIOS,
+  ...SCENARIO_EXPANSION_V2,
 ];
 
 export const SCENARIO_CATEGORIES: Array<{id: ScenarioCategory; labelFa:string}> = [
