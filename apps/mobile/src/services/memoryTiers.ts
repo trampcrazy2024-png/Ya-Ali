@@ -45,7 +45,35 @@ export { parseSessionSummary };
 // ---------------------------------------------------------------------------
 // L3 — long-term memory (SQLite, gated by recurrence)
 // ---------------------------------------------------------------------------
+// BUGFIX (field report — scenario chat and free chat both froze on "local
+// model generating a response" with no reply, ever, and no fallback): this
+// function used to be a plain `await ... .catch(() => '')` at the call
+// site, which handles a *rejected* promise but does nothing for a promise
+// that never settles at all — e.g. a genuinely stuck DB call (most likely
+// the very first time a new migration runs on a device). Since this runs
+// BEFORE the try/catch that wraps the actual chat generation, a hang here
+// froze the whole send() with no error, no fallback, and no way to recover
+// short of restarting the app. A hard timeout guarantees this can never
+// block the main chat path for more than ~1.5s, matching §11 of the LAILI
+// report ("UI نباید برای ارزیابی سنگین متوقف شود" — heavy evaluation must
+// never stall the UI) — this enrichment is a nice-to-have, not something
+// worth freezing the whole app over.
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => { if (!settled) { settled = true; resolve(fallback); } }, ms);
+    promise.then(
+      (v) => { if (!settled) { settled = true; clearTimeout(timer); resolve(v); } },
+      () => { if (!settled) { settled = true; clearTimeout(timer); resolve(fallback); } },
+    );
+  });
+}
+
 export async function getL3ContextText(learnerId: string, limit = 6): Promise<string> {
+  return withTimeout(getL3ContextTextInner(learnerId, limit), 1500, '');
+}
+
+async function getL3ContextTextInner(learnerId: string, limit: number): Promise<string> {
   try {
     const db = await getDatabaseManager();
     const rows = await new UserMemoryRepository(db).list(learnerId);
@@ -92,4 +120,18 @@ export async function maybePromoteTopic(learnerId: string, topic: string, kind: 
       updated_at: new Date().toISOString(),
     });
   } catch { /* best-effort */ }
+}
+
+// Clears L3 — the persistent, cross-session long-term memory in the
+// database. Separate on purpose from clearLocalLearningMemory (L1/L2,
+// localStorage) so a settings "clear memory" control can offer either or
+// both.
+export async function clearLearnerLongTermMemory(learnerId: string): Promise<void> {
+  const db = await getDatabaseManager();
+  await new UserMemoryRepository(db).deleteAll(learnerId);
+}
+
+// Clears L2 — every saved per-conversation session summary.
+export function clearAllSessionSummaries(): void {
+  try { localStorage.removeItem(L2_KEY); } catch { /* ignore */ }
 }

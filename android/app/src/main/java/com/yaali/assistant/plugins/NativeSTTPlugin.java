@@ -57,15 +57,28 @@ public class NativeSTTPlugin extends Plugin {
     }
 
     private void beginListen(PluginCall call) {
-        // Do NOT hard-reject on isRecognitionAvailable()==false anymore. On some
-        // OEM ROMs / devices without the Google app this check under-reports even
-        // when a usable recognizer exists, and it previously produced a dead-end
-        // "not available" error the instant the mic button was pressed, before we
-        // even tried. We now always attempt the system activity first; the real
-        // "no recognizer on this device" case is still caught further down and
-        // reported with an actionable message instead of a generic one.
         pendingCall = call; pendingLanguage = call.getString("lang", "fa-IR"); finished=false; directFallbackStarted=false;
-        try { startActivityForResult(call, buildIntent(pendingLanguage), "speechResult"); }
+        Intent intent = buildIntent(pendingLanguage);
+        // BUGFIX (field report): isRecognitionAvailable() alone is not a
+        // reliable predictor of whether ACTION_RECOGNIZE_SPEECH will
+        // actually work. On at least one real device this intent resolved
+        // to a system activity that immediately showed a dead-end "Voice
+        // search isn't available" screen and never returned a result at
+        // all — which, combined with having no timeout on this path,
+        // permanently stuck the plugin (and the mic button) with no way
+        // for the user to recover, since that foreground system screen
+        // also blocks taps on our own UI. Two independent fixes below:
+        // (1) only attempt the activity if the OS actually resolves one
+        // for this exact intent, and (2) always arm a timeout so our own
+        // state self-heals even in the worst case.
+        boolean hasActivity = false;
+        try { hasActivity = getContext() != null && intent.resolveActivity(getContext().getPackageManager()) != null; } catch (Throwable ignored) {}
+        if (!hasActivity) { startDirectRecognizer(); return; }
+        try {
+            startActivityForResult(call, intent, "speechResult");
+            mainHandler.removeCallbacks(timeoutRunnable);
+            mainHandler.postDelayed(timeoutRunnable, 20000);
+        }
         catch (Throwable e) { startDirectRecognizer(); }
     }
 
@@ -78,7 +91,13 @@ public class NativeSTTPlugin extends Plugin {
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
         intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
         intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "یا علی — صحبت کنید");
-        intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
+        // BUGFIX: this used to force EXTRA_PREFER_OFFLINE=true unconditionally.
+        // On a device with no downloaded offline speech-recognition data,
+        // forcing offline-only is exactly what produces a "voice search
+        // isn't available" dead end even though the same recognizer works
+        // fine online. We have a genuine, explicit offline path now
+        // (Sherpa-ONNX, tried before this native call — see speech.ts), so
+        // this flag no longer needs to be forced here.
         return intent;
     }
 

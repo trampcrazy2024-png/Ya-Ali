@@ -11,6 +11,7 @@ const MIRROR_KEY = 'yaali_language_bank_v4';
 const LEGACY_KEYS = ['yaali_language_bank_v3', 'yaali_language_bank_v2'];
 const db = new DatabaseManager();
 let ready = false;
+let dbInitPromise: Promise<DatabaseManager> | null = null;
 
 function normalize(s: string): string {
   return s.trim().toLocaleLowerCase('fa-IR')
@@ -101,9 +102,24 @@ export async function initLanguageBank(): Promise<void> {
 }
 
 export async function getDatabaseManager(): Promise<DatabaseManager> {
-  await db.initialize();
-  await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice, migration010LailiPhase1]);
-  return db;
+  // BUGFIX (field report — scenario/free chat froze forever on "generating
+  // a response"): this used to re-run the ENTIRE migration list (now 10
+  // migrations) on every single call, and this function is called many
+  // times per chat turn (L3 memory read, skill-vector read+write, evidence
+  // sync, correction/topic promotion...). Besides being wasteful, it
+  // multiplied the odds of ever hitting a slow/stuck DB call in the middle
+  // of a single message. Migrations now run at most once per app session;
+  // every call after the first just returns the already-ready manager.
+  // On failure the cached attempt is cleared so a transient error doesn't
+  // permanently break DB access for the rest of the session.
+  if (!dbInitPromise) {
+    dbInitPromise = (async () => {
+      await db.initialize();
+      await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice, migration010LailiPhase1]);
+      return db;
+    })().catch((e) => { dbInitPromise = null; throw e; });
+  }
+  return dbInitPromise;
 }
 
 export function getBankItems(): LanguageBankItem[] { return readMirror(); }
@@ -127,7 +143,7 @@ export async function saveBankItem(item: LanguageBankItem): Promise<void> {
   all.unshift(safe);
   writeMirror(all.slice(0, 30000));
   if (Capacitor.isNativePlatform()) {
-    try { await db.initialize(); await new MigrationRunner(db).run([migration001, migration002LanguageBank, migration003Learning, migration004LearningRuntime, migration005LearningOS, migration006AdaptiveLearning, migration007LearningIndexes, migration008LearningFeatures, migration009AdaptiveVoice, migration010LailiPhase1]); await new VocabularyRepository(db).upsertLanguageItem(safe); } catch {}
+    try { await getDatabaseManager(); await new VocabularyRepository(db).upsertLanguageItem(safe); } catch {}
   }
 }
 

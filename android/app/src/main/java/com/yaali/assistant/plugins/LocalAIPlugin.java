@@ -1,6 +1,8 @@
 package com.yaali.assistant.plugins;
 
 import android.app.Activity;
+import android.app.DownloadManager;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.database.Cursor;
@@ -17,6 +19,7 @@ import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -81,6 +84,125 @@ public class LocalAIPlugin extends Plugin {
         }
     }
 
+    // -------------------------------------------------------------------
+    // Model download-by-URL (completes the "download a model, not just
+    // pick an already-downloaded file" architecture for large local models
+    // such as LiteRT-LM .litertlm files, which are commonly several GB).
+    // Uses Android's own DownloadManager rather than fetching bytes through
+    // the JS/WebView layer: DownloadManager is resumable, survives the app
+    // being backgrounded, and never holds a multi-GB file in JS memory
+    // (which would crash the WebView). Flow: downloadModel() enqueues it;
+    // the JS side polls downloadStatus() for progress; once "successful",
+    // finalizeDownload() moves the file into the same models/ directory
+    // pickModel() uses, so every other code path (listModels, loadModel,
+    // deleteModel) treats a downloaded model exactly like a manually
+    // picked one.
+    // -------------------------------------------------------------------
+    @PluginMethod
+    public void downloadModel(PluginCall call) {
+        String url = call.getString("url");
+        String filename = call.getString("filename");
+        if (url == null || url.trim().isEmpty()) { call.reject("آدرس دانلود لازم است."); return; }
+        if (filename == null || filename.trim().isEmpty()) {
+            String last = Uri.parse(url).getLastPathSegment();
+            filename = (last != null && !last.isEmpty()) ? last : ("model_" + System.currentTimeMillis() + ".bin");
+        }
+        String lower = filename.toLowerCase();
+        if (!(lower.endsWith(".gguf") || lower.endsWith(".onnx") || lower.endsWith(".pte") || lower.endsWith(".litertlm") || lower.endsWith(".safetensors") || lower.endsWith(".bin") || lower.endsWith(".pt") || lower.endsWith(".pth") || lower.endsWith(".tflite") || lower.endsWith(".zip"))) {
+            call.reject("فرمت فایل پشتیبانی نمی‌شود.");
+            return;
+        }
+        try {
+            DownloadManager dm = (DownloadManager) getContext().getSystemService(Context.DOWNLOAD_SERVICE);
+            if (dm == null) { call.reject("DownloadManager در این دستگاه در دسترس نیست."); return; }
+            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+            request.setTitle("Ya-Ali · " + filename);
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            // App-specific external storage: no runtime permission needed
+            // (API 19+), not world-readable, and DownloadManager can write
+            // to it directly (it cannot write into getFilesDir()).
+            request.setDestinationInExternalFilesDir(getContext(), null, filename);
+            request.setAllowedOverMetered(true);
+            request.setAllowedOverRoaming(true);
+            long id = dm.enqueue(request);
+            JSObject r = new JSObject();
+            r.put("downloadId", String.valueOf(id));
+            r.put("filename", filename);
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject("شروع دانلود ناموفق بود: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void downloadStatus(PluginCall call) {
+        String idStr = call.getString("downloadId");
+        if (idStr == null) { call.reject("downloadId لازم است."); return; }
+        long id;
+        try { id = Long.parseLong(idStr); } catch (NumberFormatException e) { call.reject("downloadId نامعتبر است."); return; }
+        DownloadManager dm = (DownloadManager) getContext().getSystemService(Context.DOWNLOAD_SERVICE);
+        if (dm == null) { call.reject("DownloadManager در این دستگاه در دسترس نیست."); return; }
+        Cursor c = null;
+        try {
+            c = dm.query(new DownloadManager.Query().setFilterById(id));
+            JSObject r = new JSObject();
+            if (c == null || !c.moveToFirst()) { r.put("status", "not_found"); call.resolve(r); return; }
+            int statusIdx = c.getColumnIndex(DownloadManager.COLUMN_STATUS);
+            int totalIdx = c.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES);
+            int soFarIdx = c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR);
+            int statusCode = statusIdx >= 0 ? c.getInt(statusIdx) : -1;
+            String status;
+            if (statusCode == DownloadManager.STATUS_SUCCESSFUL) status = "successful";
+            else if (statusCode == DownloadManager.STATUS_FAILED) status = "failed";
+            else if (statusCode == DownloadManager.STATUS_RUNNING) status = "running";
+            else if (statusCode == DownloadManager.STATUS_PAUSED) status = "paused";
+            else if (statusCode == DownloadManager.STATUS_PENDING) status = "pending";
+            else status = "unknown";
+            r.put("status", status);
+            r.put("bytesTotal", totalIdx >= 0 ? c.getLong(totalIdx) : -1);
+            r.put("bytesDownloaded", soFarIdx >= 0 ? c.getLong(soFarIdx) : 0);
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject("بررسی وضعیت دانلود ناموفق بود: " + e.getMessage());
+        } finally {
+            if (c != null) c.close();
+        }
+    }
+
+    @PluginMethod
+    public void finalizeDownload(PluginCall call) {
+        String filename = call.getString("filename");
+        if (filename == null || filename.trim().isEmpty()) { call.reject("filename لازم است."); return; }
+        try {
+            File src = new File(getContext().getExternalFilesDir(null), filename);
+            if (!src.exists()) { call.reject("فایل دانلودشده پیدا نشد؛ شاید دانلود هنوز کامل نشده یا لغو شده."); return; }
+            File dir = new File(getContext().getFilesDir(), MODEL_DIR);
+            if (!dir.exists() && !dir.mkdirs()) throw new IOException("cannot create models directory");
+            File dest = new File(dir, filename);
+            // Try an atomic, instant move first; only stream-copy (which
+            // briefly doubles storage use for large files) if the two
+            // directories turn out to be on different filesystems/volumes.
+            if (!src.renameTo(dest)) {
+                try (InputStream in = new FileInputStream(src); FileOutputStream out = new FileOutputStream(dest)) {
+                    byte[] b = new byte[1024 * 1024];
+                    int n;
+                    while ((n = in.read(b)) != -1) out.write(b, 0, n);
+                }
+                src.delete();
+            }
+            JSObject r = new JSObject();
+            r.put("path", dest.getAbsolutePath());
+            r.put("name", dest.getName());
+            r.put("sizeBytes", dest.length());
+            r.put("format", detectFormat(dest.getName()));
+            r.put("imported", true);
+            r.put("engineReady", false);
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject("انتقال فایل دانلودشده ناموفق بود: " + e.getMessage());
+        }
+    }
+
     private File copyUri(Uri uri) throws Exception {
         String name = "model.bin";
         Cursor c = getContext().getContentResolver().query(uri, null, null, null, null);
@@ -91,7 +213,7 @@ public class LocalAIPlugin extends Plugin {
             } finally { c.close(); }
         }
         String lower = name.toLowerCase();
-        if (!(lower.endsWith(".gguf") || lower.endsWith(".onnx") || lower.endsWith(".pte") || lower.endsWith(".safetensors") || lower.endsWith(".bin") || lower.endsWith(".pt") || lower.endsWith(".pth") || lower.endsWith(".tflite") || lower.endsWith(".zip"))) throw new IOException("Unsupported model file format");
+        if (!(lower.endsWith(".gguf") || lower.endsWith(".onnx") || lower.endsWith(".pte") || lower.endsWith(".litertlm") || lower.endsWith(".safetensors") || lower.endsWith(".bin") || lower.endsWith(".pt") || lower.endsWith(".pth") || lower.endsWith(".tflite") || lower.endsWith(".zip"))) throw new IOException("Unsupported model file format");
         File dir = new File(getContext().getFilesDir(), MODEL_DIR);
         if (!dir.exists() && !dir.mkdirs()) throw new IOException("cannot create models directory");
         if (lower.endsWith(".zip")) return importZipBundle(uri, name, dir);
@@ -348,6 +470,7 @@ public class LocalAIPlugin extends Plugin {
         if (n.endsWith(".gguf")) return "gguf";
         if (n.endsWith(".onnx")) return "onnx";
         if (n.endsWith(".pte")) return "pte";
+        if (n.endsWith(".litertlm")) return "litertlm";
         if (n.endsWith(".safetensors")) return "safetensors";
         if (n.endsWith(".tflite")) return "tflite";
         if (n.endsWith(".bin") || n.endsWith(".pt") || n.endsWith(".pth")) return "pytorch";

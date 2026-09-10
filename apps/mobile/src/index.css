@@ -192,3 +192,17 @@ body{height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:to
 .app,.main,.panel{overflow:visible;touch-action:auto}
 .chat-panel{overflow:visible}
 .chat-panel .messages{-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;scroll-behavior:smooth}
+
+/* Settings sections (menu → section navigation), added alongside the
+   Settings restructure — matches the existing dark panel/card palette. */
+.settingsMenu{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.settingsMenuItem{display:flex;align-items:center;gap:12px;width:100%;text-align:right;background:#0e1622;border:1px solid #29404e;border-radius:14px;padding:13px 14px;color:inherit;font:inherit;cursor:pointer}
+.settingsMenuItem:active{background:#132132}
+.settingsMenuIcon{font-size:20px;flex:0 0 auto}
+.settingsMenuText{flex:1 1 auto;display:flex;flex-direction:column;gap:2px;min-width:0}
+.settingsMenuText strong{font-size:14px}
+.settingsMenuText small{color:#8196a7;font-size:11px}
+.settingsMenuChevron{color:#8196a7;font-size:18px;flex:0 0 auto}
+.settingsSectionHeader{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.settingsBack{background:none;border:none;color:#9eb0bc;font:inherit;font-size:13px;padding:6px 0;cursor:pointer}
+.settingsSectionHeader h2{font-size:15px;margin:0}

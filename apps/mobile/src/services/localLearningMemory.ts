@@ -29,3 +29,11 @@ function writeCounts(x:Record<string,number>){try{localStorage.setItem(COUNT_KEY
 export function bumpFactOccurrence(normalizedKey:string):number{if(!normalizedKey)return 0;const x=readCounts();x[normalizedKey]=(x[normalizedKey]||0)+1;writeCounts(x);return x[normalizedKey]}
 export function getFactOccurrence(normalizedKey:string):number{return readCounts()[normalizedKey]||0}
 
+// Clears everything this device remembers about the learner at the
+// L1/L2 (device-local) tier: topics, corrections, useful phrases, and the
+// recurrence counters that gate promotion to long-term (L3) memory. Does
+// NOT touch L3 itself (that lives in the database — see
+// services/memoryTiers.ts clearLearnerLongTermMemory) or per-conversation
+// L2 summaries (services/memoryTiers.ts clearAllSessionSummaries).
+export function clearLocalLearningMemory(){try{localStorage.removeItem(KEY)}catch{}try{localStorage.removeItem(COUNT_KEY)}catch{}}
+

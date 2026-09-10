@@ -79,4 +79,8 @@ export class UserMemoryRepository extends BaseRepository {
       [userId]
     );
   }
+
+  async deleteAll(userId: string): Promise<void> {
+    await this.execute('DELETE FROM user_memory WHERE user_id = ?', [userId]);
+  }
 }

@@ -18,6 +18,23 @@ const DB_VERSION = 1;
 const META_STORE = 'metadata';
 const BLOB_STORE = 'blobs';
 const MAX_AUDIO_BYTES = 64 * 1024 * 1024;
+// BUGFIX (field report: "audio import exists but doesn't import"): this used
+// to require the HTTP response's Content-Type header (or File.type) to
+// literally start with "audio/". Many real-world hosts — generic file
+// hosts, some CDNs, direct GitHub/Drive links — serve perfectly valid audio
+// with a generic Content-Type like application/octet-stream, or browsers
+// report an empty File.type for less common containers (.opus, .m4a) on
+// some Android file pickers. That meant a real, working audio link would
+// download successfully and then get rejected right after, which is
+// exactly "it's there but never gets imported". Now accepted if EITHER the
+// declared type says audio/*, OR the filename/URL ends in a known audio
+// extension.
+const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.oga', '.m4a', '.aac', '.flac', '.opus', '.webm', '.wma', '.3gp', '.amr'];
+function looksLikeAudio(mimeType: string, nameOrUrl: string): boolean {
+  if (mimeType && mimeType.startsWith('audio/')) return true;
+  const lower = nameOrUrl.toLowerCase().split('?')[0];
+  return AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -85,7 +102,7 @@ export async function addPronunciationFile(input: {
   license?: string;
 }): Promise<PronunciationAsset> {
   if (!input.itemId) throw new Error('ابتدا یک مورد از بانک زبان انتخاب کنید.');
-  if (!input.file.type.startsWith('audio/')) throw new Error('فایل باید صوتی باشد.');
+  if (!looksLikeAudio(input.file.type, input.file.name)) throw new Error('فایل باید صوتی باشد.');
   if (input.file.size <= 0 || input.file.size > MAX_AUDIO_BYTES) throw new Error('حجم صوت باید بین 1 بایت و 64MB باشد.');
   const id = `pron-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   const sha256 = await digest(input.file);
@@ -118,7 +135,7 @@ export async function addPronunciationFromUrl(input: {
   const response = await fetch(input.url, { mode: 'cors' });
   if (!response.ok) throw new Error(`دانلود صوت ناموفق بود: HTTP ${response.status}`);
   const blob = await response.blob();
-  if (!blob.type.startsWith('audio/')) throw new Error('URL به یک فایل صوتی قابل شناسایی اشاره نمی‌کند.');
+  if (!looksLikeAudio(blob.type, input.url)) throw new Error('URL به یک فایل صوتی قابل شناسایی اشاره نمی‌کند (نه از روی نوع محتوا و نه پسوند فایل).');
   if (blob.size <= 0 || blob.size > MAX_AUDIO_BYTES) throw new Error('حجم صوت باید حداکثر 64MB باشد.');
   const id = `pron-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   const sha256 = await digest(blob);
